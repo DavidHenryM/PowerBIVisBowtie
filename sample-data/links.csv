@@ -1,0 +1,12 @@
+SourceId,TargetId,LinkType
+CF-001,HAZ-001,causes
+CF-002,HAZ-001,causes
+CTRL-001,CF-001,mitigates
+CTRL-002,CF-002,mitigates
+CTRL-003,CF-001,mitigates
+HAZ-001,MSH-001,results-in
+HAZ-001,MSH-002,results-in
+HAZ-001,MSH-003,results-in
+CTRL-004,MSH-001,mitigates
+CTRL-005,MSH-002,mitigates
+CTRL-005,MSH-003,mitigates

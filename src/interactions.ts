@@ -1,0 +1,484 @@
+/*
+ * Power BI interactivity for the Cytoscape graph:
+ *  - hover neighbourhood dimming (nodes and links)
+ *  - click selection / cross-filtering via SelectionManager
+ *  - right-click context menu
+ *  - tooltips via the host tooltip service
+ *  - keyboard navigation (Tab into the graph, arrow keys to move focus, Enter/Space to select)
+ *  - cross-highlight dimming driven by the report's highlight state
+ *  - legend chip panel for in-visual filtering by artefact type / program
+ */
+
+"use strict";
+
+import cytoscape from "cytoscape";
+import powerbi from "powerbi-visuals-api";
+import ISelectionManager = powerbi.extensibility.ISelectionManager;
+import ITooltipService = powerbi.extensibility.ITooltipService;
+import ISelectionId = powerbi.visuals.ISelectionId;
+
+import { describeProbability, describeSeverity } from "./bowtie";
+import { ProbabilityLevel, SeverityCategory } from "./model";
+
+export type SelectionIdLookup = (nodeId: string) => ISelectionId | undefined;
+/** Resolves a localization key to display text, falling back to the given default. */
+export type Translate = (key: string, fallback: string) => string;
+
+export class GraphInteractions {
+    /** false when the host has disabled interactivity (e.g. read-only/pinned focus mode) */
+    private allowInteractions = true;
+    /** ordered node ids used for Tab/arrow-key keyboard navigation */
+    private focusOrder: string[] = [];
+    private focusedIndex = -1;
+    private lastTapNodeId: string | undefined;
+    private lastTapTime = 0;
+
+    constructor(
+        private cy: cytoscape.Core,
+        private selectionManager: ISelectionManager,
+        private tooltipService: ITooltipService | undefined,
+        private getSelectionId: SelectionIdLookup,
+        private translate: Translate = (_key, fallback) => fallback,
+        private onDrillDown?: (nodeId: string) => void,
+        private onOpenLink?: (url: string) => void
+    ) { }
+
+    /** Wires all Cytoscape event handlers. Call once after cy creation. */
+    public attach(): void {
+        this.attachHoverDimming();
+        this.attachSelection();
+        this.attachContextMenu();
+        this.attachTooltips();
+        this.attachKeyboardNavigation();
+    }
+
+    /** Toggles whether click/keyboard selection and the context menu are active (host-controlled). */
+    public setAllowInteractions(allow: boolean): void {
+        this.allowInteractions = allow;
+    }
+
+    /** Sets the node id order used for Tab/arrow-key keyboard navigation. */
+    public setFocusOrder(ids: string[]): void {
+        this.focusOrder = ids;
+        if (this.focusedIndex >= ids.length) {
+            this.focusedIndex = -1;
+        }
+    }
+
+    /** Applies/clears cross-highlight dimming based on data("highlighted") on each element. */
+    public applyHighlight(hasActiveHighlight: boolean): void {
+        this.cy.batch(() => {
+            this.cy.elements().forEach(ele => {
+                ele.toggleClass("unhighlighted", hasActiveHighlight && ele.data("highlighted") === false);
+            });
+        });
+    }
+
+    /** Re-applies the host's current selection state to the graph elements. */
+    public applySelectionFromManager(): void {
+        const ids = (this.selectionManager.getSelectionIds() || []) as ISelectionId[];
+        this.cy.batch(() => {
+            this.cy.nodes().forEach(n => {
+                const sid = this.getSelectionId(n.id());
+                const isSelected = !!sid && ids.some(i => i.equals(sid));
+                if (isSelected) {
+                    n.select();
+                } else {
+                    n.unselect();
+                }
+            });
+        });
+    }
+
+    private attachHoverDimming(): void {
+        const cy = this.cy;
+        cy.on("mouseover", "node", (e) => {
+            const node = e.target as cytoscape.NodeSingular;
+            if (node.hasClass("column-header")) {
+                return;
+            }
+            const keep = node.closedNeighborhood();
+            cy.elements().not(".column-header").difference(keep).addClass("dimmed");
+        });
+        cy.on("mouseout", "node", () => {
+            cy.elements().removeClass("dimmed");
+        });
+        cy.on("mouseover", "edge", (e) => {
+            const edge = e.target as cytoscape.EdgeSingular;
+            const keep = edge.connectedNodes().union(edge);
+            cy.elements().not(".column-header").difference(keep).addClass("dimmed");
+        });
+        cy.on("mouseout", "edge", () => {
+            cy.elements().removeClass("dimmed");
+        });
+    }
+
+    private attachSelection(): void {
+        this.cy.on("tap", "node", (e) => {
+            if (!this.allowInteractions) {
+                return;
+            }
+            const node = e.target as cytoscape.NodeSingular;
+            if (node.hasClass("column-header")) {
+                return;
+            }
+
+            // manual double-tap detection (cytoscape has no built-in "dbltap" for drill gestures)
+            const now = Date.now();
+            if (this.onDrillDown && this.lastTapNodeId === node.id() && now - this.lastTapTime < 400) {
+                this.lastTapNodeId = undefined;
+                this.onDrillDown(node.id());
+                return;
+            }
+            this.lastTapNodeId = node.id();
+            this.lastTapTime = now;
+
+            const oe = e.originalEvent as MouseEvent | undefined;
+            const multi = !!oe && (oe.ctrlKey || oe.metaKey);
+
+            // Hyperlink: Ctrl/Cmd+Click a node with a bound Source/Target URL opens it instead of multi-selecting
+            const url = String(node.data("url") || "");
+            if (multi && url && this.onOpenLink) {
+                this.onOpenLink(url);
+                return;
+            }
+
+            const sid = this.getSelectionId(node.id());
+            if (!sid) {
+                return;
+            }
+            void this.selectionManager.select(sid, multi).then(() => this.applySelectionFromManager());
+        });
+        // tap on empty canvas clears the selection
+        this.cy.on("tap", (e) => {
+            if (!this.allowInteractions) {
+                return;
+            }
+            if (e.target === this.cy) {
+                void this.selectionManager.clear().then(() => this.applySelectionFromManager());
+            }
+        });
+    }
+
+    private attachContextMenu(): void {
+        this.cy.on("cxttap", "node", (e) => {
+            if (!this.allowInteractions) {
+                return;
+            }
+            const node = e.target as cytoscape.NodeSingular;
+            if (node.hasClass("column-header")) {
+                return;
+            }
+            const sid = this.getSelectionId(node.id());
+            if (!sid) {
+                return;
+            }
+            const oe = e.originalEvent as MouseEvent | undefined;
+            const point = oe ? { x: oe.clientX, y: oe.clientY } : { x: 0, y: 0 };
+            void this.selectionManager.showContextMenu(sid, point);
+            if (oe && oe.preventDefault) {
+                oe.preventDefault();
+            }
+        });
+    }
+
+    private coordinatesFor(e: cytoscape.EventObject): [number, number] {
+        const oe = e.originalEvent as MouseEvent | undefined;
+        if (oe && typeof oe.clientX === "number") {
+            return [oe.clientX, oe.clientY];
+        }
+        const rp = e.renderedPosition || { x: 0, y: 0 };
+        const rect = (this.cy.container() as HTMLElement).getBoundingClientRect();
+        return [rect.left + rp.x, rect.top + rp.y];
+    }
+
+    private attachTooltips(): void {
+        const ts = this.tooltipService;
+        if (!ts || !ts.enabled()) {
+            return;
+        }
+
+        this.cy.on("mouseover", "node", (e) => {
+            const node = e.target as cytoscape.NodeSingular;
+            if (node.hasClass("column-header")) {
+                return;
+            }
+            const d = node.data();
+            const dataItems = [
+                { displayName: this.translate("Tooltip_Artefact", "Artefact"), value: String(d.id) },
+                { displayName: this.translate("Tooltip_ShortName", "Short Name"), value: String(d.shortName || "—") },
+                { displayName: this.translate("Tooltip_LongName", "Long Name"), value: String(d.longName || "—") },
+                { displayName: this.translate("Tooltip_Type", "Type"), value: String(d.type || "—") }
+            ];
+            if (d.bowtieRole) {
+                dataItems.push({ displayName: this.translate("Tooltip_BowtieRole", "Bowtie role"), value: String(d.bowtieRole) });
+            }
+            if (d.severity || d.severityCategory) {
+                dataItems.push({
+                    displayName: this.translate("Tooltip_Severity", "Severity (882E Table I)"),
+                    value: d.severityCategory ? describeSeverity(d.severityCategory as SeverityCategory) : String(d.severity)
+                });
+            }
+            if (d.probability || d.probabilityLevel) {
+                dataItems.push({
+                    displayName: this.translate("Tooltip_Probability", "Probability (882E Table II)"),
+                    value: d.probabilityLevel ? describeProbability(d.probabilityLevel as ProbabilityLevel) : String(d.probability)
+                });
+            }
+            if (d.riskLevel) {
+                dataItems.push({ displayName: this.translate("Tooltip_Risk", "Assessed risk (882E Table III)"), value: String(d.riskLevel) });
+            }
+            dataItems.push(
+                { displayName: this.translate("Tooltip_Program", "Program"), value: String(d.program || "—") },
+                { displayName: this.translate("Tooltip_Scope", "Scope"), value: String(d.scope || "—") },
+                { displayName: this.translate("Tooltip_Version", "Version"), value: String(d.version || "—") },
+                { displayName: this.translate("Tooltip_Classification", "Classification"), value: String(d.classification || "—") },
+                { displayName: this.translate("Tooltip_Caveat", "Caveat"), value: String(d.caveat || "—") },
+                { displayName: this.translate("Tooltip_Status", "Status"), value: String(d.status || "—") },
+                { displayName: this.translate("Tooltip_ExternalId", "External ID"), value: String(d.externalId || "—") },
+                { displayName: this.translate("Tooltip_DmsId", "DMS ID"), value: String(d.dmsId || "—") }
+            );
+            if (d.url) {
+                dataItems.push({ displayName: "", value: this.translate("Tooltip_OpenLink", "Ctrl+Click to open artefact link") });
+            }
+            const sid = this.getSelectionId(String(d.id));
+            ts.show({
+                coordinates: this.coordinatesFor(e),
+                isTouchEvent: false,
+                dataItems: dataItems,
+                identities: sid ? [sid] : []
+            });
+        });
+        this.cy.on("mousemove", "node", (e) => {
+            ts.move({ coordinates: this.coordinatesFor(e), isTouchEvent: false, dataItems: [], identities: [] });
+        });
+        this.cy.on("mouseout", "node", () => ts.hide({ immediately: true, isTouchEvent: false }));
+
+        this.cy.on("mouseover", "edge", (e) => {
+            const d = (e.target as cytoscape.EdgeSingular).data();
+            const dataItems = [
+                { displayName: this.translate("Tooltip_Relationship", "Relationship"), value: String(d.linkType) },
+                { displayName: this.translate("Tooltip_From", "From"), value: String(d.source) },
+                { displayName: this.translate("Tooltip_To", "To"), value: String(d.target) }
+            ];
+            ts.show({
+                coordinates: this.coordinatesFor(e),
+                isTouchEvent: false,
+                dataItems: dataItems,
+                identities: []
+            });
+        });
+        this.cy.on("mouseout", "edge", () => ts.hide({ immediately: true, isTouchEvent: false }));
+    }
+
+    /**
+     * Keyboard support (WCAG 2.1 / supportsKeyboardFocus): once the graph container has
+     * focus, Left/Right/Up/Down move a focus ring between nodes in data order, Enter/Space
+     * selects (cross-filtering the report), and Escape clears the selection and focus ring.
+     */
+    private attachKeyboardNavigation(): void {
+        const container = this.cy.container() as HTMLElement;
+        if (!container) {
+            return;
+        }
+        container.addEventListener("keydown", (e: KeyboardEvent) => {
+            if (this.focusOrder.length === 0) {
+                return;
+            }
+            switch (e.key) {
+                case "ArrowRight":
+                case "ArrowDown":
+                    e.preventDefault();
+                    this.moveFocus(1);
+                    break;
+                case "ArrowLeft":
+                case "ArrowUp":
+                    e.preventDefault();
+                    this.moveFocus(-1);
+                    break;
+                case "Enter":
+                case " ":
+                    if (this.allowInteractions) {
+                        e.preventDefault();
+                        this.selectFocusedNode(e.ctrlKey || e.metaKey);
+                    }
+                    break;
+                case "Escape":
+                    if (this.allowInteractions) {
+                        e.preventDefault();
+                        void this.selectionManager.clear().then(() => this.applySelectionFromManager());
+                    }
+                    break;
+                default:
+                    break;
+            }
+        });
+        container.addEventListener("focus", () => {
+            if (this.focusedIndex < 0 && this.focusOrder.length > 0) {
+                this.focusedIndex = 0;
+                this.highlightFocusedNode();
+            }
+        });
+        container.addEventListener("blur", () => {
+            this.cy.nodes().removeClass("kbd-focus");
+        });
+    }
+
+    private moveFocus(delta: number): void {
+        const count = this.focusOrder.length;
+        this.focusedIndex = ((this.focusedIndex < 0 ? 0 : this.focusedIndex) + delta + count) % count;
+        this.highlightFocusedNode();
+    }
+
+    private highlightFocusedNode(): void {
+        const id = this.focusOrder[this.focusedIndex];
+        if (id === undefined) {
+            return;
+        }
+        this.cy.nodes().removeClass("kbd-focus");
+        const node = this.cy.getElementById(id);
+        if (node.nonempty()) {
+            node.addClass("kbd-focus");
+            this.cy.animate({ center: { eles: node }, duration: 150 });
+        }
+    }
+
+    private selectFocusedNode(multi: boolean): void {
+        const id = this.focusOrder[this.focusedIndex];
+        const sid = id !== undefined ? this.getSelectionId(id) : undefined;
+        if (!sid) {
+            return;
+        }
+        void this.selectionManager.select(sid, multi).then(() => this.applySelectionFromManager());
+    }
+}
+
+/** A legend chip entry for a bowtie element type (keyed by canonical typeKey). */
+export interface LegendTypeEntry {
+    key: string;
+    label: string;
+    colour: string;
+}
+
+/**
+ * HTML legend overlay with toggleable chips for bowtie element types and programs.
+ * Hidden types/programs set display:none on matching nodes (incident edges
+ * are hidden automatically by Cytoscape).
+ */
+export class LegendPanel {
+    private hiddenTypeKeys = new Set<string>();
+    private hiddenPrograms = new Set<string>();
+
+    constructor(
+        private container: HTMLElement,
+        private getCy: () => cytoscape.Core | undefined,
+        private translate: Translate = (_key, fallback) => fallback
+    ) { }
+
+    public render(
+        typeEntries: LegendTypeEntry[],
+        programs: string[],
+        typeCounts: Map<string, number>,
+        programCounts: Map<string, number>,
+        visible: boolean
+    ): void {
+        // prune hidden entries that no longer exist in the data
+        const keys = typeEntries.map(t => t.key);
+        this.hiddenTypeKeys.forEach(t => { if (keys.indexOf(t) < 0) { this.hiddenTypeKeys.delete(t); } });
+        this.hiddenPrograms.forEach(p => { if (programs.indexOf(p) < 0) { this.hiddenPrograms.delete(p); } });
+
+        this.container.textContent = "";
+        if (!visible || (typeEntries.length === 0 && programs.length === 0)) {
+            this.container.style.display = "none";
+            return;
+        }
+        this.container.style.display = "block";
+
+        this.container.appendChild(this.makeTitle(this.translate("Legend_FilterTitle", "Filter")));
+
+        if (typeEntries.length > 0) {
+            this.container.appendChild(this.makeSectionLabel(this.translate("Legend_BowtieElement", "Bowtie element")));
+            for (const t of typeEntries) {
+                this.container.appendChild(this.makeChip(t.label, typeCounts.get(t.key) || 0, t.colour, this.hiddenTypeKeys.has(t.key), () => {
+                    this.toggle(this.hiddenTypeKeys, t.key);
+                    this.applyVisibility();
+                    this.render(typeEntries, programs, typeCounts, programCounts, visible);
+                }));
+            }
+        }
+        if (programs.length > 0) {
+            this.container.appendChild(this.makeSectionLabel(this.translate("Legend_Program", "Program")));
+            for (const p of programs) {
+                this.container.appendChild(this.makeChip(p, programCounts.get(p) || 0, "#607D8B", this.hiddenPrograms.has(p), () => {
+                    this.toggle(this.hiddenPrograms, p);
+                    this.applyVisibility();
+                    this.render(typeEntries, programs, typeCounts, programCounts, visible);
+                }));
+            }
+        }
+    }
+
+    private toggle(set: Set<string>, value: string): void {
+        if (set.has(value)) {
+            set.delete(value);
+        } else {
+            set.add(value);
+        }
+    }
+
+    private applyVisibility(): void {
+        const cy = this.getCy();
+        if (!cy) {
+            return;
+        }
+        cy.batch(() => {
+            cy.nodes().forEach(n => {
+                if (n.hasClass("column-header")) {
+                    return;
+                }
+                const typeKey = String(n.data("typeKey") || "");
+                const program = String(n.data("program") || "");
+                const visible = !this.hiddenTypeKeys.has(typeKey) && !this.hiddenPrograms.has(program);
+                n.style("display", visible ? "element" : "none");
+            });
+        });
+    }
+
+    private makeTitle(text: string): HTMLElement {
+        const el = document.createElement("div");
+        el.className = "legend-title";
+        el.textContent = text;
+        return el;
+    }
+
+    private makeSectionLabel(text: string): HTMLElement {
+        const el = document.createElement("div");
+        el.className = "legend-section";
+        el.textContent = text;
+        return el;
+    }
+
+    private makeChip(label: string, count: number, colour: string, off: boolean, onClick: () => void): HTMLElement {
+        const chip = document.createElement("span");
+        chip.className = "legend-chip" + (off ? " off" : "");
+        chip.tabIndex = 0;
+        chip.setAttribute("role", "checkbox");
+        chip.setAttribute("aria-checked", String(!off));
+        chip.setAttribute("aria-label", label + " (" + count + ")");
+        const dot = document.createElement("span");
+        dot.className = "legend-dot";
+        dot.style.backgroundColor = colour;
+        const text = document.createElement("span");
+        text.textContent = label + " (" + count + ")";
+        chip.appendChild(dot);
+        chip.appendChild(text);
+        chip.addEventListener("click", onClick);
+        chip.addEventListener("keydown", (e: KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+            }
+        });
+        return chip;
+    }
+}

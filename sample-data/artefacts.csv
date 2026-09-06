@@ -1,0 +1,12 @@
+ArtefactId,Type,Program,Classification,Caveat,Status,Url,ShortName,LongName,Scope,Version,ExternalId,DmsId,Severity,Probability
+HAZ-001,Hazard,Program Alpha,PROTECTED,AUSTEO,Approved,https://dms.example.com/hazards/HAZ-001,Haz 001,Loss of Navigation Hazard,Internal,1.0,EXT-HAZ-001,DMS-100239,I,C
+CF-001,Causal Factor,Program Alpha,PROTECTED,,Approved,https://dms.example.com/factors/CF-001,CF 001,GNSS jamming or spoofing,Internal,1.0,EXT-CF-001,DMS-100250,,
+CF-002,Causal Factor,Program Alpha,PROTECTED,,Approved,https://dms.example.com/factors/CF-002,CF 002,IMU component failure,Contractor 1,1.0,EXT-CF-002,DMS-100251,,
+CTRL-001,Control,Program Alpha,SECRET,Export Controlled,Baseline,https://dms.example.com/controls/CTRL-001,Ctrl 001,Redundant GPS receiver,Contractor 1,1.0,EXT-CTRL-001,DMS-100241,,
+CTRL-002,Control,Program Alpha,SECRET,Export Controlled,Draft,https://dms.example.com/controls/CTRL-002,Ctrl 002,Inertial backup navigation,Contractor 1,1.0,EXT-CTRL-002,DMS-100242,,
+CTRL-003,Control,Program Alpha,PROTECTED,,Approved,https://dms.example.com/controls/CTRL-003,Ctrl 003,EMC shielding and antenna filtering,Contractor 1,1.0,EXT-CTRL-003,DMS-100252,,
+MSH-001,Mishap,Program Alpha,SECRET,Export Controlled,Approved,https://dms.example.com/mishaps/MSH-001,Mishap 001,Controlled flight into terrain,Internal,1.0,EXT-MSH-001,DMS-100253,I,B
+MSH-002,Mishap,Program Alpha,PROTECTED,,Approved,https://dms.example.com/mishaps/MSH-002,Mishap 002,Controlled airspace infringement,Internal,1.0,EXT-MSH-002,DMS-100254,II,D
+MSH-003,Mishap,Program Alpha,PROTECTED,,Draft,https://dms.example.com/mishaps/MSH-003,Mishap 003,Mission abort with delayed diversion,Internal,1.0,EXT-MSH-003,DMS-100255,III,E
+CTRL-004,Control,Program Alpha,SECRET,Export Controlled,Baseline,https://dms.example.com/controls/CTRL-004,Ctrl 004,Terrain awareness and warning system (TAWS),Contractor 1,2.0,EXT-CTRL-004,DMS-100256,,
+CTRL-005,Control,Program Alpha,PROTECTED,,Approved,https://dms.example.com/controls/CTRL-005,Ctrl 005,Emergency diversion procedure,Internal,1.0,EXT-CTRL-005,DMS-100257,,
