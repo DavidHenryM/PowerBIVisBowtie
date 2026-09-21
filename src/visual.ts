@@ -32,8 +32,9 @@ import { buildGraph, toCytoscapeElements, GraphModel } from "./model";
 import { buildStylesheet, StyleConfig, typeColour } from "./stylesheet";
 import { cachePositions, applyCachedPositions, computeBowtiePositions, runBowtieLayout } from "./layouts";
 import { deriveBowtieTopology, BowtieTopology } from "./bowtie";
-import { GraphInteractions, LegendPanel } from "./interactions";
+import { GraphInteractions, LegendPanel, VerificationLegendEntry } from "./interactions";
 import { ArtefactInfoDialog } from "./infoDialog";
+import { verificationNodeHeight } from "./icons";
 
 const SUPPORT_URL = "https://github.com/DavidHenryM/PowerBIVisBowtie";
 
@@ -84,7 +85,7 @@ export class Visual implements IVisual {
         this.cyContainer.setAttribute("aria-label", this.translate("Visual_LandingTitle", "Safety Bowtie (MIL-STD-882E)"));
         this.emptyMessage = document.createElement("div");
         this.emptyMessage.className = "empty-message";
-        this.emptyMessage.textContent = this.translate("Visual_EmptyMessage", "Bind Source ID and Target ID fields to display the safety bowtie.");
+        this.emptyMessage.textContent = this.translate("Visual_EmptyMessage", "Bind Control Set and Hazard ID plus the bowtie element fields.");
         this.landingPage = document.createElement("div");
         this.landingPage.className = "landing-page";
         this.landingPage.style.display = "none";
@@ -94,7 +95,7 @@ export class Visual implements IVisual {
         const landingDescription = document.createElement("div");
         landingDescription.className = "landing-description";
         landingDescription.textContent = this.translate("Visual_LandingDescription",
-            "Visualise a MIL-STD-882E system safety bowtie: causal factors and preventive controls on the left, the hazard (top event) at the centre, mitigative controls and mishaps on the right. Add Source ID and Target ID fields to get started.");
+            "Bind the explicit cause, control, hazard and effect fields. Filter to one hazard to compare Initial and Target controls.");
         this.landingPage.appendChild(landingTitle);
         this.landingPage.appendChild(landingDescription);
         this.legendContainer = document.createElement("div");
@@ -156,18 +157,9 @@ export class Visual implements IVisual {
         const initialState = {
             title: this.translate("AboutDialog_Title", "About Safety Bowtie (MIL-STD-882E)"),
             message: this.translate("AboutDialog_Message",
-                "Renders a MIL-STD-882E safety bowtie: causal factors flow through preventive controls into the hazard (top event), then out through mitigative controls to mishaps. Bind severity and probability to colour nodes by assessed mishap risk (882E Table III). Click a node to cross-filter, double-click to drill, and use the legend to filter by element type or program.")
+                "Compares Initial and Target safety bowties for one filtered hazard. Each control shows before and after MIL-STD-882E risk plus its hierarchy-of-controls category. Click a data element to cross-filter the report.")
         };
         void this.host.openModalDialog(ArtefactInfoDialog.id, dialogOptions, initialState);
-    }
-
-    /** Drill Down: requests the next hierarchy level for the artefact-type role of a double-clicked node. */
-    private handleDrillDown(nodeId: string): void {
-        if (this.host.hostCapabilities.allowInteractions === false) {
-            return;
-        }
-        void nodeId; // drill targets the bound hierarchy field, not a specific data point
-        this.host.drill({ roleName: "sourceType", drillType: powerbi.DrillType.Down });
     }
 
     public update(options: VisualUpdateOptions) {
@@ -183,6 +175,21 @@ export class Visual implements IVisual {
             const settings = this.formattingSettings || new VisualFormattingSettingsModel();
 
             const graph: GraphModel = dataView ? buildGraph(dataView, this.host) : EMPTY_GRAPH;
+
+            if (graph.hazardIds && graph.hazardIds.length !== 1) {
+                this.emptyMessage.textContent = this.translate("Visual_SelectOneHazard", "Filter the visual to exactly one Hazard ID.");
+                this.showEmptyState("empty");
+                if (this.cy) this.cy.elements().remove();
+                this.events.renderingFinished(options);
+                return;
+            }
+            if (graph.controlSets && (!graph.controlSets.includes("initial") || !graph.controlSets.includes("target"))) {
+                this.emptyMessage.textContent = this.translate("Visual_MissingControlSet", "The selected hazard must contain both Initial and Target control sets.");
+                this.showEmptyState("empty");
+                if (this.cy) this.cy.elements().remove();
+                this.events.renderingFinished(options);
+                return;
+            }
 
             this.identityMap.clear();
             for (const node of graph.nodes) {
@@ -206,7 +213,7 @@ export class Visual implements IVisual {
 
             // bowtie topology: pick the top event, assign sides/ranks/lanes, assess 882E risk
             const topology = deriveBowtieTopology(graph);
-            this.updateTopologyNote(topology);
+            this.updateTopologyNote(topology, graph.issues || []);
             const hidden = new Set(topology.hiddenNodeIds);
             const visibleNodes = graph.nodes.filter(n => !hidden.has(n.id));
             const visibleGraph: GraphModel = {
@@ -217,7 +224,7 @@ export class Visual implements IVisual {
                 hasActiveHighlight: graph.hasActiveHighlight
             };
 
-            const styleConfig = this.buildStyleConfig(settings);
+            const styleConfig = this.buildStyleConfig(settings, visibleGraph);
             this.lastStyleConfig = styleConfig;
             // Color Palette / High Contrast: match the report theme's canvas background
             this.cyContainer.style.backgroundColor = styleConfig.highContrast ? styleConfig.backgroundColor : "";
@@ -238,7 +245,7 @@ export class Visual implements IVisual {
                     this.tooltipService,
                     (id) => this.identityMap.get(id),
                     (key, fallback) => this.translate(key, fallback),
-                    (nodeId) => this.handleDrillDown(nodeId),
+                    undefined,
                     (url) => this.host.launchUrl(url));
                 this.interactions.attach();
             } else {
@@ -251,12 +258,19 @@ export class Visual implements IVisual {
                 // Allow Interactions: disable selection/keyboard actions when the host marks the visual read-only
                 interactions.setAllowInteractions(this.host.hostCapabilities.allowInteractions !== false);
             }
-            this.host.setCanDrill(true);
+            this.host.setCanDrill(false);
 
             // cache positions of existing nodes so slicer-driven refreshes do not reshuffle the bowtie;
             // the cache is dropped when the spacing settings change so reflows take effect
             const columnGap = Math.max(settings.nodesCard.nodeWidth.value + 60, settings.layoutCard.idealEdgeLength.value * 1.6);
-            const laneSpacing = settings.bowtieCard.laneSpacing.value;
+            const tallestControl = visibleGraph.nodes
+                .filter(node => node.nodeKind === "preventiveControl" || node.nodeKind === "mitigatingControl")
+                .reduce((height, node) => Math.max(height, verificationNodeHeight(
+                    settings.nodesCard.nodeHeight.value,
+                    settings.nodesCard.nodeWidth.value,
+                    (node.verificationMethods || []).map(label => ({ label, colour: "" })),
+                    (node.verificationPhases || []).map(label => ({ label, colour: "" })))), settings.nodesCard.nodeHeight.value);
+            const laneSpacing = Math.max(settings.bowtieCard.laneSpacing.value, tallestControl + 30);
             const posKey = columnGap + "|" + laneSpacing;
             if (posKey !== this.positionCacheKey) {
                 this.positionCache.clear();
@@ -279,7 +293,7 @@ export class Visual implements IVisual {
             this.addColumnHeaders(cy, settings, columnGap, laneSpacing);
 
             if (interactions) {
-                interactions.setFocusOrder(visibleGraph.nodes.map(n => n.id));
+                interactions.setFocusOrder(visibleGraph.nodes.filter(n => n.selectable !== false).map(n => n.id));
                 interactions.applyHighlight(visibleGraph.hasActiveHighlight);
             }
 
@@ -330,8 +344,8 @@ export class Visual implements IVisual {
     }
 
     /** Bottom-left note for bowtie topology caveats (inferred centre, hidden off-bowtie nodes). */
-    private updateTopologyNote(topology: BowtieTopology): void {
-        const notes: string[] = [];
+    private updateTopologyNote(topology: BowtieTopology, issues: string[] = []): void {
+        const notes: string[] = issues.slice();
         if (topology.centreInferred && topology.topEventId) {
             notes.push(this.translate("Visual_NoHazard",
                 "No 'Hazard'-typed artefact found — using '{0}' as the top event.").replace("{0}", topology.topEventId));
@@ -350,42 +364,40 @@ export class Visual implements IVisual {
             return;
         }
         const rankLabels: { rank: number; key: string; fallback: string }[] = [
-            { rank: -2, key: "Bowtie_Header_CausalFactors", fallback: "Causal Factors" },
-            { rank: -1, key: "Bowtie_Header_PreventiveControls", fallback: "Preventive Controls" },
+            { rank: -4, key: "Bowtie_Header_CausalFactors", fallback: "Causes" },
+            { rank: -3, key: "Bowtie_Header_BeforeRisk", fallback: "Before Risk" },
+            { rank: -2, key: "Bowtie_Header_PreventiveControls", fallback: "Preventive Controls" },
+            { rank: -1, key: "Bowtie_Header_AfterRisk", fallback: "After Risk" },
             { rank: 0, key: "Bowtie_Header_TopEvent", fallback: "Hazard (Top Event)" },
-            { rank: 1, key: "Bowtie_Header_MitigativeControls", fallback: "Mitigative Controls" },
-            { rank: 2, key: "Bowtie_Header_Mishaps", fallback: "Mishaps" }
+            { rank: 1, key: "Bowtie_Header_BeforeRisk", fallback: "Before Risk" },
+            { rank: 2, key: "Bowtie_Header_MitigativeControls", fallback: "Mitigating Controls" },
+            { rank: 3, key: "Bowtie_Header_AfterRisk", fallback: "After Risk" },
+            { rank: 4, key: "Bowtie_Header_Mishaps", fallback: "Effects" }
         ];
-        const present = new Set<number>();
-        let minY = Number.POSITIVE_INFINITY;
-        cy.nodes().forEach(n => {
-            const r = n.data("rank");
-            if (r !== "" && r !== undefined && r !== null) {
-                present.add(Number(r));
-            }
-            minY = Math.min(minY, n.position("y"));
-        });
-        if (!isFinite(minY)) {
-            return;
-        }
-        const headerY = minY - laneSpacing * 0.8;
-        for (const h of rankLabels) {
-            if (!present.has(h.rank)) {
-                continue;
+        for (const set of ["initial", "target"]) {
+            const scenarioNodes = cy.nodes().filter(node => node.data("controlSet") === set);
+            if (scenarioNodes.empty()) continue;
+            const minY = scenarioNodes.min(node => (node as cytoscape.NodeSingular).position("y")).value;
+            const headerY = minY - laneSpacing * 0.8;
+            for (const header of rankLabels) {
+                if (scenarioNodes.filter(node => Number(node.data("rank")) === header.rank).empty()) continue;
+                cy.add({
+                    group: "nodes", classes: "column-header",
+                    data: { id: "__bowtie_hdr_" + set + "_" + header.rank, label: this.translate(header.key, header.fallback), highlighted: true },
+                    position: { x: header.rank * columnGap, y: headerY }, locked: true, grabbable: false, selectable: false
+                } as cytoscape.ElementDefinition);
             }
             cy.add({
-                group: "nodes",
-                classes: "column-header",
-                data: { id: "__bowtie_hdr_" + h.rank, label: this.translate(h.key, h.fallback), highlighted: true },
-                position: { x: h.rank * columnGap, y: headerY },
-                locked: true,
-                grabbable: false,
-                selectable: false
+                group: "nodes", classes: "column-header",
+                data: { id: "__bowtie_set_" + set, label: set === "initial"
+                    ? this.translate("Bowtie_InitialControls", "INITIAL CONTROLS")
+                    : this.translate("Bowtie_TargetControls", "TARGET CONTROLS"), highlighted: true },
+                position: { x: -4.8 * columnGap, y: headerY }, locked: true, grabbable: false, selectable: false
             } as cytoscape.ElementDefinition);
         }
     }
 
-    private buildStyleConfig(s: VisualFormattingSettingsModel): StyleConfig {
+    private buildStyleConfig(s: VisualFormattingSettingsModel, graph: GraphModel = EMPTY_GRAPH): StyleConfig {
         const c = s.colorsCard;
         const palette = this.host.colorPalette;
         // High Contrast: draw using only theme foreground/background colours, per Power BI accessibility guidance
@@ -436,6 +448,16 @@ export class Visual implements IVisual {
                 riskMedium: c.riskMediumColor.value.value,
                 riskLow: c.riskLowColor.value.value
             };
+        const methodValues = new Set<string>();
+        const phaseValues = new Set<string>();
+        for (const node of graph.nodes) {
+            (node.verificationMethods || []).forEach(value => methodValues.add(value.trim().toLocaleLowerCase()));
+            (node.verificationPhases || []).forEach(value => phaseValues.add(value.trim().toLocaleLowerCase()));
+        }
+        const verificationMethodColours: Record<string, string> = {};
+        const verificationPhaseColours: Record<string, string> = {};
+        methodValues.forEach(value => { verificationMethodColours[value] = palette.getColor("verificationMethod:" + value).value; });
+        phaseValues.forEach(value => { verificationPhaseColours[value] = palette.getColor("verificationPhase:" + value).value; });
         return {
             nodeWidth: s.nodesCard.nodeWidth.value,
             nodeHeight: s.nodesCard.nodeHeight.value,
@@ -455,7 +477,9 @@ export class Visual implements IVisual {
             highContrast: palette.isHighContrast,
             foregroundColor: palette.foreground.value,
             backgroundColor: palette.background.value,
-            selectedColor: palette.isHighContrast ? palette.foregroundSelected.value : "#111111"
+            selectedColor: palette.isHighContrast ? palette.foregroundSelected.value : "#111111",
+            verificationMethodColours,
+            verificationPhaseColours
         };
     }
 
@@ -466,13 +490,30 @@ export class Visual implements IVisual {
                 () => this.cy,
                 (key, fallback) => this.translate(key, fallback));
         }
-        const colours = this.lastStyleConfig ? this.lastStyleConfig.colours : this.buildStyleConfig(settings).colours;
+        const colours = this.lastStyleConfig ? this.lastStyleConfig.colours : this.buildStyleConfig(settings, graph).colours;
         const typeCounts = new Map<string, number>();
         const programCounts = new Map<string, number>();
+        const methodLabels = new Map<string, { label: string; nodes: Set<string> }>();
+        const phaseLabels = new Map<string, { label: string; nodes: Set<string> }>();
         for (const node of graph.nodes) {
+            if (node.nodeKind === "risk") {
+                continue;
+            }
             typeCounts.set(node.typeKey, (typeCounts.get(node.typeKey) || 0) + 1);
             if (node.program) {
                 programCounts.set(node.program, (programCounts.get(node.program) || 0) + 1);
+            }
+            for (const value of node.verificationMethods || []) {
+                const key = value.trim().toLocaleLowerCase();
+                const entry = methodLabels.get(key) || { label: value, nodes: new Set<string>() };
+                entry.nodes.add(node.id);
+                methodLabels.set(key, entry);
+            }
+            for (const value of node.verificationPhases || []) {
+                const key = value.trim().toLocaleLowerCase();
+                const entry = phaseLabels.get(key) || { label: value, nodes: new Set<string>() };
+                entry.nodes.add(node.id);
+                phaseLabels.set(key, entry);
             }
         }
         // bowtie element order: causal factors → hazard → controls → mishaps, then legacy SE types
@@ -486,7 +527,19 @@ export class Visual implements IVisual {
                 return oa !== ob ? oa - ob : (a < b ? -1 : a > b ? 1 : 0);
             })
             .map(key => ({ key: key, label: this.typeKeyLabel(key), colour: typeColour(key, colours) }));
-        this.legend.render(entries, graph.programs, typeCounts, programCounts, visible);
+        const style = this.lastStyleConfig || this.buildStyleConfig(settings, graph);
+        const verificationEntries = (labels: Map<string, { label: string; nodes: Set<string> }>, colourMap: Record<string, string>): VerificationLegendEntry[] =>
+            Array.from(labels.entries())
+                .map(([key, value]) => ({ key, label: value.label, colour: colourMap[key] || "#607D8B", count: value.nodes.size }))
+                .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+        this.legend.render(
+            entries,
+            graph.programs,
+            typeCounts,
+            programCounts,
+            verificationEntries(methodLabels, style.verificationMethodColours),
+            verificationEntries(phaseLabels, style.verificationPhaseColours),
+            visible);
     }
 
     private typeKeyLabel(key: string): string {

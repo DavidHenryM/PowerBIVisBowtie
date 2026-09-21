@@ -1,0 +1,8 @@
+PreventiveControlId,PreventiveControlName,PreventiveControlTooltip,PreventiveControlHierarchy
+PC-001,Independent navigation source,Provides dissimilar position input,Engineering
+PC-002,Database validation,Checks integrity before release,Administrative
+PC-003,Shielded multi-band antenna,Rejects interference at the antenna,Isolate
+PC-004,Eliminate single-point receiver,Removes dependence on one receiver,Eliminate
+PC-005,Substitute verified dataset,Uses independently assured navigation data,Substitute
+PC-101,Temperature inspection,,Administrative
+PC-102,Passive thermal path,,Engineering

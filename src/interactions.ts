@@ -19,6 +19,7 @@ import ISelectionId = powerbi.visuals.ISelectionId;
 
 import { describeProbability, describeSeverity } from "./bowtie";
 import { ProbabilityLevel, SeverityCategory } from "./model";
+import { normaliseControlHierarchy } from "./icons";
 
 export type SelectionIdLookup = (nodeId: string) => ISelectionId | undefined;
 /** Resolves a localization key to display text, falling back to the given default. */
@@ -95,6 +96,9 @@ export class GraphInteractions {
         cy.on("mouseover", "node", (e) => {
             const node = e.target as cytoscape.NodeSingular;
             if (node.hasClass("column-header")) {
+                return;
+            }
+            if (node.data("selectable") === false) {
                 return;
             }
             const keep = node.closedNeighborhood();
@@ -205,13 +209,25 @@ export class GraphInteractions {
             }
             const d = node.data();
             const dataItems = [
-                { displayName: this.translate("Tooltip_Artefact", "Artefact"), value: String(d.id) },
-                { displayName: this.translate("Tooltip_ShortName", "Short Name"), value: String(d.shortName || "—") },
-                { displayName: this.translate("Tooltip_LongName", "Long Name"), value: String(d.longName || "—") },
+                { displayName: this.translate("Tooltip_Artefact", "Element ID"), value: String(d.semanticId || d.id) },
+                { displayName: this.translate("Tooltip_Name", "Name"), value: String(d.label || d.semanticId || d.id) },
                 { displayName: this.translate("Tooltip_Type", "Type"), value: String(d.type || "—") }
             ];
             if (d.bowtieRole) {
                 dataItems.push({ displayName: this.translate("Tooltip_BowtieRole", "Bowtie role"), value: String(d.bowtieRole) });
+            }
+            if (d.hierarchy) {
+                const hierarchy = normaliseControlHierarchy(String(d.hierarchy));
+                dataItems.push({ displayName: this.translate("Tooltip_ControlHierarchy", "Hierarchy of controls"), value: hierarchy ? hierarchy.label : String(d.hierarchy) });
+            }
+            if (d.verificationMethodText) {
+                dataItems.push({ displayName: this.translate("Tooltip_VerificationMethod", "Verification method"), value: String(d.verificationMethodText) });
+            }
+            if (d.verificationPhaseText) {
+                dataItems.push({ displayName: this.translate("Tooltip_VerificationPhase", "Verification phase"), value: String(d.verificationPhaseText) });
+            }
+            if (d.tooltip) {
+                dataItems.push({ displayName: this.translate("Tooltip_Details", "Details"), value: String(d.tooltip) });
             }
             if (d.severity || d.severityCategory) {
                 dataItems.push({
@@ -227,19 +243,6 @@ export class GraphInteractions {
             }
             if (d.riskLevel) {
                 dataItems.push({ displayName: this.translate("Tooltip_Risk", "Assessed risk (882E Table III)"), value: String(d.riskLevel) });
-            }
-            dataItems.push(
-                { displayName: this.translate("Tooltip_Program", "Program"), value: String(d.program || "—") },
-                { displayName: this.translate("Tooltip_Scope", "Scope"), value: String(d.scope || "—") },
-                { displayName: this.translate("Tooltip_Version", "Version"), value: String(d.version || "—") },
-                { displayName: this.translate("Tooltip_Classification", "Classification"), value: String(d.classification || "—") },
-                { displayName: this.translate("Tooltip_Caveat", "Caveat"), value: String(d.caveat || "—") },
-                { displayName: this.translate("Tooltip_Status", "Status"), value: String(d.status || "—") },
-                { displayName: this.translate("Tooltip_ExternalId", "External ID"), value: String(d.externalId || "—") },
-                { displayName: this.translate("Tooltip_DmsId", "DMS ID"), value: String(d.dmsId || "—") }
-            );
-            if (d.url) {
-                dataItems.push({ displayName: "", value: this.translate("Tooltip_OpenLink", "Ctrl+Click to open artefact link") });
             }
             const sid = this.getSelectionId(String(d.id));
             ts.show({
@@ -360,6 +363,13 @@ export interface LegendTypeEntry {
     colour: string;
 }
 
+export interface VerificationLegendEntry {
+    key: string;
+    label: string;
+    colour: string;
+    count: number;
+}
+
 /**
  * HTML legend overlay with toggleable chips for bowtie element types and programs.
  * Hidden types/programs set display:none on matching nodes (incident edges
@@ -368,6 +378,8 @@ export interface LegendTypeEntry {
 export class LegendPanel {
     private hiddenTypeKeys = new Set<string>();
     private hiddenPrograms = new Set<string>();
+    private hiddenVerificationMethods = new Set<string>();
+    private hiddenVerificationPhases = new Set<string>();
 
     constructor(
         private container: HTMLElement,
@@ -380,15 +392,21 @@ export class LegendPanel {
         programs: string[],
         typeCounts: Map<string, number>,
         programCounts: Map<string, number>,
+        verificationMethods: VerificationLegendEntry[],
+        verificationPhases: VerificationLegendEntry[],
         visible: boolean
     ): void {
         // prune hidden entries that no longer exist in the data
         const keys = typeEntries.map(t => t.key);
         this.hiddenTypeKeys.forEach(t => { if (keys.indexOf(t) < 0) { this.hiddenTypeKeys.delete(t); } });
         this.hiddenPrograms.forEach(p => { if (programs.indexOf(p) < 0) { this.hiddenPrograms.delete(p); } });
+        const methodKeys = verificationMethods.map(entry => entry.key);
+        const phaseKeys = verificationPhases.map(entry => entry.key);
+        this.hiddenVerificationMethods.forEach(value => { if (methodKeys.indexOf(value) < 0) this.hiddenVerificationMethods.delete(value); });
+        this.hiddenVerificationPhases.forEach(value => { if (phaseKeys.indexOf(value) < 0) this.hiddenVerificationPhases.delete(value); });
 
         this.container.textContent = "";
-        if (!visible || (typeEntries.length === 0 && programs.length === 0)) {
+        if (!visible || (typeEntries.length === 0 && programs.length === 0 && verificationMethods.length === 0 && verificationPhases.length === 0)) {
             this.container.style.display = "none";
             return;
         }
@@ -402,7 +420,7 @@ export class LegendPanel {
                 this.container.appendChild(this.makeChip(t.label, typeCounts.get(t.key) || 0, t.colour, this.hiddenTypeKeys.has(t.key), () => {
                     this.toggle(this.hiddenTypeKeys, t.key);
                     this.applyVisibility();
-                    this.render(typeEntries, programs, typeCounts, programCounts, visible);
+                    this.render(typeEntries, programs, typeCounts, programCounts, verificationMethods, verificationPhases, visible);
                 }));
             }
         }
@@ -412,9 +430,32 @@ export class LegendPanel {
                 this.container.appendChild(this.makeChip(p, programCounts.get(p) || 0, "#607D8B", this.hiddenPrograms.has(p), () => {
                     this.toggle(this.hiddenPrograms, p);
                     this.applyVisibility();
-                    this.render(typeEntries, programs, typeCounts, programCounts, visible);
+                    this.render(typeEntries, programs, typeCounts, programCounts, verificationMethods, verificationPhases, visible);
                 }));
             }
+        }
+        this.renderVerificationSection(
+            this.translate("Legend_VerificationMethod", "Verification method"),
+            verificationMethods,
+            this.hiddenVerificationMethods,
+            () => this.render(typeEntries, programs, typeCounts, programCounts, verificationMethods, verificationPhases, visible));
+        this.renderVerificationSection(
+            this.translate("Legend_VerificationPhase", "Verification phase"),
+            verificationPhases,
+            this.hiddenVerificationPhases,
+            () => this.render(typeEntries, programs, typeCounts, programCounts, verificationMethods, verificationPhases, visible));
+        this.applyVisibility();
+    }
+
+    private renderVerificationSection(title: string, entries: VerificationLegendEntry[], hidden: Set<string>, rerender: () => void): void {
+        if (entries.length === 0) return;
+        this.container.appendChild(this.makeSectionLabel(title));
+        for (const entry of entries) {
+            this.container.appendChild(this.makeChip(entry.label, entry.count, entry.colour, hidden.has(entry.key), () => {
+                this.toggle(hidden, entry.key);
+                this.applyVisibility();
+                rerender();
+            }));
         }
     }
 
@@ -438,7 +479,13 @@ export class LegendPanel {
                 }
                 const typeKey = String(n.data("typeKey") || "");
                 const program = String(n.data("program") || "");
-                const visible = !this.hiddenTypeKeys.has(typeKey) && !this.hiddenPrograms.has(program);
+                const methods = (Array.isArray(n.data("verificationMethods")) ? n.data("verificationMethods") : [])
+                    .map((value: unknown) => String(value).trim().toLocaleLowerCase());
+                const phases = (Array.isArray(n.data("verificationPhases")) ? n.data("verificationPhases") : [])
+                    .map((value: unknown) => String(value).trim().toLocaleLowerCase());
+                const verificationVisible = !methods.some((value: string) => this.hiddenVerificationMethods.has(value))
+                    && !phases.some((value: string) => this.hiddenVerificationPhases.has(value));
+                const visible = !this.hiddenTypeKeys.has(typeKey) && !this.hiddenPrograms.has(program) && verificationVisible;
                 n.style("display", visible ? "element" : "none");
             });
         });

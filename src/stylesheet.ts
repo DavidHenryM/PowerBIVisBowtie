@@ -10,6 +10,8 @@ import cytoscape from "cytoscape";
 
 import {
     getNodeIcon,
+    verificationNodeHeight,
+    VerificationBadge,
     statusStyle,
     ArtefactTypeKey,
     LinkTypeKey
@@ -62,6 +64,30 @@ export interface StyleConfig {
     foregroundColor: string;
     backgroundColor: string;
     selectedColor: string;
+    verificationMethodColours: Record<string, string>;
+    verificationPhaseColours: Record<string, string>;
+}
+
+function normalisedValue(value: string): string {
+    return value.trim().toLocaleLowerCase();
+}
+
+function verificationBadges(values: unknown, colours: Record<string, string>): VerificationBadge[] {
+    return (Array.isArray(values) ? values : []).map(value => String(value)).map(label => ({
+        label,
+        colour: colours[normalisedValue(label)] || "#607D8B"
+    }));
+}
+
+function elementHeight(ele: cytoscape.NodeSingular, options: StyleConfig): number {
+    if (ele.data("nodeKind") !== "preventiveControl" && ele.data("nodeKind") !== "mitigatingControl") {
+        return options.nodeHeight;
+    }
+    return verificationNodeHeight(
+        options.nodeHeight,
+        options.nodeWidth,
+        verificationBadges(ele.data("verificationMethods"), options.verificationMethodColours),
+        verificationBadges(ele.data("verificationPhases"), options.verificationPhaseColours));
 }
 
 export function typeColour(typeKey: string, colours: ColourConfig): string {
@@ -110,7 +136,7 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
     const nodeStyle = {
         "shape": "round-rectangle",
         "width": o.nodeWidth,
-        "height": o.nodeHeight,
+        "height": (ele: cytoscape.NodeSingular) => elementHeight(ele, o),
         // precedence: conditional-formatting override > 882E risk colouring > type colour
         "background-color": (ele: cytoscape.NodeSingular) =>
             ele.data("fillOverride")
@@ -118,9 +144,10 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
             || typeColour(ele.data("typeKey"), o.colours),
         "background-image": (ele: cytoscape.NodeSingular) => {
             const level = ele.data("riskLevel") || "";
+            const height = elementHeight(ele, o);
             return getNodeIcon({
                 width: o.nodeWidth,
-                height: o.nodeHeight,
+                height,
                 typeKey: ele.data("typeKey") || "other",
                 classification: o.showClassification ? (ele.data("classification") || "") : "",
                 caveat: o.showCaveat ? (ele.data("caveat") || "") : "",
@@ -129,11 +156,14 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
                 showCaveat: o.showCaveat,
                 riskLevel: o.showRiskBadge ? level : "",
                 riskColor: riskColour(level, o.colours),
-                showRiskBadge: o.showRiskBadge
+                showRiskBadge: o.showRiskBadge,
+                hierarchy: ele.data("hierarchy") || "",
+                verificationMethods: verificationBadges(ele.data("verificationMethods"), o.verificationMethodColours),
+                verificationPhases: verificationBadges(ele.data("verificationPhases"), o.verificationPhaseColours)
             });
         },
         "background-width": o.nodeWidth,
-        "background-height": o.nodeHeight,
+        "background-height": (ele: cytoscape.NodeSingular) => elementHeight(ele, o),
         "background-fit": "none",
         "background-clip": "none",
         "background-image-opacity": 1,
@@ -219,10 +249,22 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
         "events": "no"
     } as unknown as cytoscape.Css.Node;
 
+    const riskNodeStyle = {
+        "shape": "diamond",
+        "width": Math.max(42, o.nodeHeight),
+        "height": Math.max(42, o.nodeHeight),
+        "font-size": Math.max(9, o.fontSize - 1),
+        "background-image": "none",
+        "background-color": (ele: cytoscape.NodeSingular) => riskColour(ele.data("riskLevel") || "", o.colours) || "#78909C",
+        "border-style": "solid",
+        "border-color": o.highContrast ? o.foregroundColor : "#455A64"
+    } as unknown as cytoscape.Css.Node;
+
     return [
         { selector: "node", style: nodeStyle },
         { selector: "edge", style: edgeStyle },
         { selector: ".column-header", style: columnHeaderStyle },
+        { selector: "node[nodeKind = 'risk']", style: riskNodeStyle },
         { selector: ".dimmed", style: dimmedStyle },
         { selector: ".unhighlighted", style: unhighlightedStyle },
         { selector: "node:selected", style: selectedStyle },

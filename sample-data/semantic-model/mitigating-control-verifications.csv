@@ -1,0 +1,9 @@
+MitigatingControlId,VerificationMethod,VerificationPhase
+MC-001,Demonstration,SAT
+MC-001,Inspection,UAT
+MC-002,Review,UAT
+MC-003,Test,FAT
+MC-003,Analysis,SAT
+MC-004,Demonstration,UAT
+MC-101,Inspection,FAT
+MC-102,Analysis,SAT

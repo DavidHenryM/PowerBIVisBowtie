@@ -1,477 +1,128 @@
 {
-    "dataRoles": [
-        {
-            "displayName": "Source ID",
-            "displayNameKey": "Role_SourceId",
-            "name": "sourceId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target ID",
-            "displayNameKey": "Role_TargetId",
-            "name": "targetId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Link Type",
-            "displayNameKey": "Role_LinkType",
-            "name": "linkType",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Artefact Type",
-            "displayNameKey": "Role_SourceType",
-            "name": "sourceType",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Artefact Type",
-            "displayNameKey": "Role_TargetType",
-            "name": "targetType",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Program",
-            "displayNameKey": "Role_SourceProgram",
-            "name": "sourceProgram",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Program",
-            "displayNameKey": "Role_TargetProgram",
-            "name": "targetProgram",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Classification",
-            "displayNameKey": "Role_SourceClassification",
-            "name": "sourceClassification",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Classification",
-            "displayNameKey": "Role_TargetClassification",
-            "name": "targetClassification",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Caveat",
-            "displayNameKey": "Role_SourceCaveat",
-            "name": "sourceCaveat",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Caveat",
-            "displayNameKey": "Role_TargetCaveat",
-            "name": "targetCaveat",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Status",
-            "displayNameKey": "Role_SourceStatus",
-            "name": "sourceStatus",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Status",
-            "displayNameKey": "Role_TargetStatus",
-            "name": "targetStatus",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source URL",
-            "displayNameKey": "Role_SourceUrl",
-            "description": "Optional. Link to open the source artefact (e.g. a document management system URL).",
-            "descriptionKey": "Role_SourceUrl_Description",
-            "name": "sourceUrl",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target URL",
-            "displayNameKey": "Role_TargetUrl",
-            "description": "Optional. Link to open the target artefact (e.g. a document management system URL).",
-            "descriptionKey": "Role_TargetUrl_Description",
-            "name": "targetUrl",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Short Name",
-            "displayNameKey": "Role_SourceShortName",
-            "name": "sourceShortName",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Short Name",
-            "displayNameKey": "Role_TargetShortName",
-            "name": "targetShortName",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Long Name",
-            "displayNameKey": "Role_SourceLongName",
-            "name": "sourceLongName",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Long Name",
-            "displayNameKey": "Role_TargetLongName",
-            "name": "targetLongName",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Scope",
-            "displayNameKey": "Role_SourceScope",
-            "description": "e.g. Contractor 1, Internal",
-            "descriptionKey": "Role_SourceScope_Description",
-            "name": "sourceScope",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Scope",
-            "displayNameKey": "Role_TargetScope",
-            "description": "e.g. Contractor 1, Internal",
-            "descriptionKey": "Role_TargetScope_Description",
-            "name": "targetScope",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Version",
-            "displayNameKey": "Role_SourceVersion",
-            "name": "sourceVersion",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Version",
-            "displayNameKey": "Role_TargetVersion",
-            "name": "targetVersion",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source External ID",
-            "displayNameKey": "Role_SourceExternalId",
-            "name": "sourceExternalId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target External ID",
-            "displayNameKey": "Role_TargetExternalId",
-            "name": "targetExternalId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source DMS ID",
-            "displayNameKey": "Role_SourceDmsId",
-            "name": "sourceDmsId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target DMS ID",
-            "displayNameKey": "Role_TargetDmsId",
-            "name": "targetDmsId",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Severity",
-            "displayNameKey": "Role_SourceSeverity",
-            "description": "Optional. MIL-STD-882E severity category of the source artefact (I Catastrophic, II Critical, III Marginal, IV Negligible). Used with probability to assess mishap risk (882E Table III).",
-            "descriptionKey": "Role_SourceSeverity_Description",
-            "name": "sourceSeverity",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Severity",
-            "displayNameKey": "Role_TargetSeverity",
-            "description": "Optional. MIL-STD-882E severity category of the target artefact (I Catastrophic, II Critical, III Marginal, IV Negligible). Used with probability to assess mishap risk (882E Table III).",
-            "descriptionKey": "Role_TargetSeverity_Description",
-            "name": "targetSeverity",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Source Probability",
-            "displayNameKey": "Role_SourceProbability",
-            "description": "Optional. MIL-STD-882E probability level of the source artefact (A Frequent, B Probable, C Occasional, D Remote, E Improbable, F Eliminated). Used with severity to assess mishap risk (882E Table III).",
-            "descriptionKey": "Role_SourceProbability_Description",
-            "name": "sourceProbability",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Target Probability",
-            "displayNameKey": "Role_TargetProbability",
-            "description": "Optional. MIL-STD-882E probability level of the target artefact (A Frequent, B Probable, C Occasional, D Remote, E Improbable, F Eliminated). Used with severity to assess mishap risk (882E Table III).",
-            "descriptionKey": "Role_TargetProbability_Description",
-            "name": "targetProbability",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Highlight measure",
-            "displayNameKey": "Role_HighlightMeasure",
-            "description": "Optional. Bind a measure to enable cross-highlighting this visual from other visuals/slicers.",
-            "descriptionKey": "Role_HighlightMeasure_Description",
-            "name": "highlightMeasure",
-            "kind": "Measure"
-        }
-    ],
-    "objects": {
-        "layout": {
-            "properties": {
-                "idealEdgeLength": {
-                    "type": {
-                        "numeric": true
-                    }
-                },
-                "animate": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "fitOnLoad": {
-                    "type": {
-                        "bool": true
-                    }
-                }
-            }
-        },
-        "bowtie": {
-            "properties": {
-                "showColumnHeaders": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "laneSpacing": {
-                    "type": {
-                        "numeric": true
-                    }
-                }
-            }
-        },
-        "risk": {
-            "properties": {
-                "riskColoring": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "showRiskBadge": {
-                    "type": {
-                        "bool": true
-                    }
-                }
-            }
-        },
-        "nodes": {
-            "properties": {
-                "nodeWidth": {
-                    "type": {
-                        "numeric": true
-                    }
-                },
-                "nodeHeight": {
-                    "type": {
-                        "numeric": true
-                    }
-                },
-                "fontSize": {
-                    "type": {
-                        "formatting": {
-                            "fontSize": true
-                        }
-                    }
-                },
-                "showIcons": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "showClassification": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "showCaveat": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "statusBorders": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "minZoomedFontSize": {
-                    "type": {
-                        "numeric": true
-                    }
-                }
-            }
-        },
-        "links": {
-            "properties": {
-                "showEdgeLabels": {
-                    "type": {
-                        "bool": true
-                    }
-                },
-                "edgeLabelFontSize": {
-                    "type": {
-                        "formatting": {
-                            "fontSize": true
-                        }
-                    }
-                },
-                "arrowScale": {
-                    "type": {
-                        "numeric": true
-                    }
-                },
-                "curved": {
-                    "type": {
-                        "bool": true
-                    }
-                }
-            }
-        },
-        "legend": {
-            "properties": {
-                "showLegend": {
-                    "type": {
-                        "bool": true
-                    }
-                }
-            }
-        },
-        "colors": {
-            "properties": {
-                "documentColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "specColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "causalFactorColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "hazardColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "controlColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "mishapColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "verificationColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "requirementColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "otherNodeColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "derivesColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "causesColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "mitigatesColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "resultsInColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "verifiesColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "allocatesColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "informsColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "otherLinkColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "riskHighColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "riskSeriousColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "riskMediumColor": { "type": { "fill": { "solid": { "color": true } } } },
-                "riskLowColor": { "type": { "fill": { "solid": { "color": true } } } }
-            }
-        },
-        "dataPoint": {
-            "properties": {
-                "fill": {
-                    "displayName": "Node colour override (rule-based)",
-                    "displayNameKey": "DataPoint_Fill",
-                    "type": { "fill": { "solid": { "color": true } } }
-                }
-            }
-        }
-    },
-    "dataViewMappings": [
-        {
-            "conditions": [
-                {
-                    "sourceId": { "min": 1, "max": 1 },
-                    "targetId": { "min": 1, "max": 1 },
-                    "linkType": { "max": 1 },
-                    "sourceType": { "max": 1 },
-                    "targetType": { "max": 1 },
-                    "sourceProgram": { "max": 1 },
-                    "targetProgram": { "max": 1 },
-                    "sourceClassification": { "max": 1 },
-                    "targetClassification": { "max": 1 },
-                    "sourceCaveat": { "max": 1 },
-                    "targetCaveat": { "max": 1 },
-                    "sourceStatus": { "max": 1 },
-                    "targetStatus": { "max": 1 },
-                    "sourceUrl": { "max": 1 },
-                    "targetUrl": { "max": 1 },
-                    "sourceShortName": { "max": 1 },
-                    "targetShortName": { "max": 1 },
-                    "sourceLongName": { "max": 1 },
-                    "targetLongName": { "max": 1 },
-                    "sourceScope": { "max": 1 },
-                    "targetScope": { "max": 1 },
-                    "sourceVersion": { "max": 1 },
-                    "targetVersion": { "max": 1 },
-                    "sourceExternalId": { "max": 1 },
-                    "targetExternalId": { "max": 1 },
-                    "sourceDmsId": { "max": 1 },
-                    "targetDmsId": { "max": 1 },
-                    "sourceSeverity": { "max": 1 },
-                    "targetSeverity": { "max": 1 },
-                    "sourceProbability": { "max": 1 },
-                    "targetProbability": { "max": 1 }
-                }
-            ],
-            "categorical": {
-                "categories": {
-                    "select": [
-                        { "bind": { "to": "sourceId" } },
-                        { "bind": { "to": "targetId" } },
-                        { "bind": { "to": "linkType" } },
-                        { "bind": { "to": "sourceType" } },
-                        { "bind": { "to": "targetType" } },
-                        { "bind": { "to": "sourceProgram" } },
-                        { "bind": { "to": "targetProgram" } },
-                        { "bind": { "to": "sourceClassification" } },
-                        { "bind": { "to": "targetClassification" } },
-                        { "bind": { "to": "sourceCaveat" } },
-                        { "bind": { "to": "targetCaveat" } },
-                        { "bind": { "to": "sourceStatus" } },
-                        { "bind": { "to": "targetStatus" } },
-                        { "bind": { "to": "sourceUrl" } },
-                        { "bind": { "to": "targetUrl" } },
-                        { "bind": { "to": "sourceShortName" } },
-                        { "bind": { "to": "targetShortName" } },
-                        { "bind": { "to": "sourceLongName" } },
-                        { "bind": { "to": "targetLongName" } },
-                        { "bind": { "to": "sourceScope" } },
-                        { "bind": { "to": "targetScope" } },
-                        { "bind": { "to": "sourceVersion" } },
-                        { "bind": { "to": "targetVersion" } },
-                        { "bind": { "to": "sourceExternalId" } },
-                        { "bind": { "to": "targetExternalId" } },
-                        { "bind": { "to": "sourceDmsId" } },
-                        { "bind": { "to": "targetDmsId" } },
-                        { "bind": { "to": "sourceSeverity" } },
-                        { "bind": { "to": "targetSeverity" } },
-                        { "bind": { "to": "sourceProbability" } },
-                        { "bind": { "to": "targetProbability" } }
-                    ],
-                    "dataReductionAlgorithm": {
-                        "top": {
-                            "count": 30000
-                        }
-                    }
-                },
-                "values": {
-                    "select": [
-                        { "bind": { "to": "highlightMeasure" } }
-                    ]
-                }
-            }
-        }
-    ],
-    "tooltips": {
-        "supportedTypes": {
-            "default": true
-        }
-    },
-    "supportsKeyboardFocus": true,
-    "supportsHighlight": true,
-    "supportsLandingPage": true,
-    "supportsMultiVisualSelection": true,
-    "drilldown": {
-        "roles": ["sourceType", "targetType"]
-    },
-    "privileges": []
+  "dataRoles": [
+    { "name": "controlSet", "displayName": "Control Set", "displayNameKey": "Role_ControlSet", "description": "Initial or Target.", "descriptionKey": "Role_ControlSet_Description", "kind": "Grouping" },
+    { "name": "causeId", "displayName": "Cause ID", "displayNameKey": "Role_CauseId", "kind": "Grouping" },
+    { "name": "causeName", "displayName": "Cause Name", "displayNameKey": "Role_CauseName", "kind": "Grouping" },
+    { "name": "causeTooltip", "displayName": "Cause Tooltip", "displayNameKey": "Role_CauseTooltip", "kind": "Grouping" },
+    { "name": "preventiveControlId", "displayName": "Preventive Control ID", "displayNameKey": "Role_PreventiveControlId", "kind": "Grouping" },
+    { "name": "preventiveControlName", "displayName": "Preventive Control Name", "displayNameKey": "Role_PreventiveControlName", "kind": "Grouping" },
+    { "name": "preventiveControlTooltip", "displayName": "Preventive Control Tooltip", "displayNameKey": "Role_PreventiveControlTooltip", "kind": "Grouping" },
+    { "name": "preventiveControlHierarchy", "displayName": "Preventive Control Hierarchy", "displayNameKey": "Role_PreventiveControlHierarchy", "kind": "Grouping" },
+    { "name": "preventiveVerificationMethod", "displayName": "Preventive Verification Method", "displayNameKey": "Role_PreventiveVerificationMethod", "description": "Optional. One or more verification methods linked to the preventive control.", "descriptionKey": "Role_PreventiveVerificationMethod_Description", "kind": "Grouping" },
+    { "name": "preventiveVerificationPhase", "displayName": "Preventive Verification Phase", "displayNameKey": "Role_PreventiveVerificationPhase", "description": "Optional. One or more verification phases linked to the preventive control.", "descriptionKey": "Role_PreventiveVerificationPhase_Description", "kind": "Grouping" },
+    { "name": "preventiveBeforeSeverity", "displayName": "Preventive Before Severity", "displayNameKey": "Role_PreventiveBeforeSeverity", "kind": "Grouping" },
+    { "name": "preventiveBeforeProbability", "displayName": "Preventive Before Probability", "displayNameKey": "Role_PreventiveBeforeProbability", "kind": "Grouping" },
+    { "name": "preventiveAfterSeverity", "displayName": "Preventive After Severity", "displayNameKey": "Role_PreventiveAfterSeverity", "kind": "Grouping" },
+    { "name": "preventiveAfterProbability", "displayName": "Preventive After Probability", "displayNameKey": "Role_PreventiveAfterProbability", "kind": "Grouping" },
+    { "name": "hazardId", "displayName": "Hazard ID", "displayNameKey": "Role_HazardId", "kind": "Grouping" },
+    { "name": "hazardName", "displayName": "Hazard Name", "displayNameKey": "Role_HazardName", "kind": "Grouping" },
+    { "name": "hazardTooltip", "displayName": "Hazard Tooltip", "displayNameKey": "Role_HazardTooltip", "kind": "Grouping" },
+    { "name": "mitigatingControlId", "displayName": "Mitigating Control ID", "displayNameKey": "Role_MitigatingControlId", "kind": "Grouping" },
+    { "name": "mitigatingControlName", "displayName": "Mitigating Control Name", "displayNameKey": "Role_MitigatingControlName", "kind": "Grouping" },
+    { "name": "mitigatingControlTooltip", "displayName": "Mitigating Control Tooltip", "displayNameKey": "Role_MitigatingControlTooltip", "kind": "Grouping" },
+    { "name": "mitigatingControlHierarchy", "displayName": "Mitigating Control Hierarchy", "displayNameKey": "Role_MitigatingControlHierarchy", "kind": "Grouping" },
+    { "name": "mitigatingVerificationMethod", "displayName": "Mitigating Verification Method", "displayNameKey": "Role_MitigatingVerificationMethod", "description": "Optional. One or more verification methods linked to the mitigating control.", "descriptionKey": "Role_MitigatingVerificationMethod_Description", "kind": "Grouping" },
+    { "name": "mitigatingVerificationPhase", "displayName": "Mitigating Verification Phase", "displayNameKey": "Role_MitigatingVerificationPhase", "description": "Optional. One or more verification phases linked to the mitigating control.", "descriptionKey": "Role_MitigatingVerificationPhase_Description", "kind": "Grouping" },
+    { "name": "mitigatingBeforeSeverity", "displayName": "Mitigating Before Severity", "displayNameKey": "Role_MitigatingBeforeSeverity", "kind": "Grouping" },
+    { "name": "mitigatingBeforeProbability", "displayName": "Mitigating Before Probability", "displayNameKey": "Role_MitigatingBeforeProbability", "kind": "Grouping" },
+    { "name": "mitigatingAfterSeverity", "displayName": "Mitigating After Severity", "displayNameKey": "Role_MitigatingAfterSeverity", "kind": "Grouping" },
+    { "name": "mitigatingAfterProbability", "displayName": "Mitigating After Probability", "displayNameKey": "Role_MitigatingAfterProbability", "kind": "Grouping" },
+    { "name": "effectId", "displayName": "Effect ID", "displayNameKey": "Role_EffectId", "kind": "Grouping" },
+    { "name": "effectName", "displayName": "Effect Name", "displayNameKey": "Role_EffectName", "kind": "Grouping" },
+    { "name": "effectTooltip", "displayName": "Effect Tooltip", "displayNameKey": "Role_EffectTooltip", "kind": "Grouping" },
+    { "name": "highlightMeasure", "displayName": "Highlight measure", "displayNameKey": "Role_HighlightMeasure", "kind": "Measure" }
+  ],
+  "objects": {
+    "layout": { "properties": {
+      "idealEdgeLength": { "type": { "numeric": true } },
+      "animate": { "type": { "bool": true } },
+      "fitOnLoad": { "type": { "bool": true } }
+    } },
+    "bowtie": { "properties": {
+      "showColumnHeaders": { "type": { "bool": true } },
+      "laneSpacing": { "type": { "numeric": true } }
+    } },
+    "risk": { "properties": {
+      "riskColoring": { "type": { "bool": true } },
+      "showRiskBadge": { "type": { "bool": true } }
+    } },
+    "nodes": { "properties": {
+      "nodeWidth": { "type": { "numeric": true } },
+      "nodeHeight": { "type": { "numeric": true } },
+      "fontSize": { "type": { "formatting": { "fontSize": true } } },
+      "showIcons": { "type": { "bool": true } },
+      "showClassification": { "type": { "bool": true } },
+      "showCaveat": { "type": { "bool": true } },
+      "statusBorders": { "type": { "bool": true } },
+      "minZoomedFontSize": { "type": { "numeric": true } }
+    } },
+    "links": { "properties": {
+      "showEdgeLabels": { "type": { "bool": true } },
+      "edgeLabelFontSize": { "type": { "formatting": { "fontSize": true } } },
+      "arrowScale": { "type": { "numeric": true } },
+      "curved": { "type": { "bool": true } }
+    } },
+    "legend": { "properties": { "showLegend": { "type": { "bool": true } } } },
+    "colors": { "properties": {
+      "documentColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "specColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "causalFactorColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "hazardColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "controlColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "mishapColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "verificationColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "requirementColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "otherNodeColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "derivesColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "causesColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "mitigatesColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "resultsInColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "verifiesColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "allocatesColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "informsColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "otherLinkColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "riskHighColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "riskSeriousColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "riskMediumColor": { "type": { "fill": { "solid": { "color": true } } } },
+      "riskLowColor": { "type": { "fill": { "solid": { "color": true } } } }
+    } },
+    "dataPoint": { "properties": {
+      "fill": { "displayName": "Node colour override (rule-based)", "displayNameKey": "DataPoint_Fill", "type": { "fill": { "solid": { "color": true } } } }
+    } }
+  },
+  "dataViewMappings": [{
+    "conditions": [{
+      "controlSet": { "min": 0, "max": 1 },
+      "causeId": { "max": 1 }, "causeName": { "max": 1 }, "causeTooltip": { "max": 1 },
+      "preventiveControlId": { "max": 1 }, "preventiveControlName": { "max": 1 }, "preventiveControlTooltip": { "max": 1 }, "preventiveControlHierarchy": { "max": 1 },
+      "preventiveVerificationMethod": { "max": 1 }, "preventiveVerificationPhase": { "max": 1 },
+      "preventiveBeforeSeverity": { "max": 1 }, "preventiveBeforeProbability": { "max": 1 }, "preventiveAfterSeverity": { "max": 1 }, "preventiveAfterProbability": { "max": 1 },
+      "hazardId": { "min": 0, "max": 1 }, "hazardName": { "max": 1 }, "hazardTooltip": { "max": 1 },
+      "mitigatingControlId": { "max": 1 }, "mitigatingControlName": { "max": 1 }, "mitigatingControlTooltip": { "max": 1 }, "mitigatingControlHierarchy": { "max": 1 },
+      "mitigatingVerificationMethod": { "max": 1 }, "mitigatingVerificationPhase": { "max": 1 },
+      "mitigatingBeforeSeverity": { "max": 1 }, "mitigatingBeforeProbability": { "max": 1 }, "mitigatingAfterSeverity": { "max": 1 }, "mitigatingAfterProbability": { "max": 1 },
+      "effectId": { "max": 1 }, "effectName": { "max": 1 }, "effectTooltip": { "max": 1 }
+    }],
+    "categorical": {
+      "categories": { "select": [
+        { "bind": { "to": "controlSet" } },
+        { "bind": { "to": "causeId" } }, { "bind": { "to": "causeName" } }, { "bind": { "to": "causeTooltip" } },
+        { "bind": { "to": "preventiveControlId" } }, { "bind": { "to": "preventiveControlName" } }, { "bind": { "to": "preventiveControlTooltip" } }, { "bind": { "to": "preventiveControlHierarchy" } },
+        { "bind": { "to": "preventiveVerificationMethod" } }, { "bind": { "to": "preventiveVerificationPhase" } },
+        { "bind": { "to": "preventiveBeforeSeverity" } }, { "bind": { "to": "preventiveBeforeProbability" } }, { "bind": { "to": "preventiveAfterSeverity" } }, { "bind": { "to": "preventiveAfterProbability" } },
+        { "bind": { "to": "hazardId" } }, { "bind": { "to": "hazardName" } }, { "bind": { "to": "hazardTooltip" } },
+        { "bind": { "to": "mitigatingControlId" } }, { "bind": { "to": "mitigatingControlName" } }, { "bind": { "to": "mitigatingControlTooltip" } }, { "bind": { "to": "mitigatingControlHierarchy" } },
+        { "bind": { "to": "mitigatingVerificationMethod" } }, { "bind": { "to": "mitigatingVerificationPhase" } },
+        { "bind": { "to": "mitigatingBeforeSeverity" } }, { "bind": { "to": "mitigatingBeforeProbability" } }, { "bind": { "to": "mitigatingAfterSeverity" } }, { "bind": { "to": "mitigatingAfterProbability" } },
+        { "bind": { "to": "effectId" } }, { "bind": { "to": "effectName" } }, { "bind": { "to": "effectTooltip" } }
+      ], "dataReductionAlgorithm": { "top": { "count": 30000 } } },
+      "values": { "select": [{ "bind": { "to": "highlightMeasure" } }] }
+    }
+  }],
+  "tooltips": { "supportedTypes": { "default": true } },
+  "supportsKeyboardFocus": true,
+  "supportsHighlight": true,
+  "supportsLandingPage": true,
+  "supportsMultiVisualSelection": true,
+  "privileges": []
 }

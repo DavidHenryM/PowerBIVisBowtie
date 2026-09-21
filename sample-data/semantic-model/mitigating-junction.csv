@@ -1,0 +1,9 @@
+ControlSet,HazardId,MitigatingControlId,MitigatingBeforeSeverity,MitigatingBeforeProbability,MitigatingAfterSeverity,MitigatingAfterProbability,EffectId
+Initial,H-001,MC-001,I,B,II,D,E-001
+Initial,H-001,MC-001,I,B,II,D,E-002
+Initial,H-001,MC-002,II,C,III,E,E-003
+Target,H-001,MC-003,I,C,III,E,E-001
+Target,H-001,MC-003,I,C,III,E,E-002
+Target,H-001,MC-004,II,D,IV,F,E-003
+Initial,H-002,MC-101,I,B,II,D,E-101
+Target,H-002,MC-102,I,C,III,E,E-101

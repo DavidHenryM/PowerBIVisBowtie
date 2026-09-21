@@ -1,0 +1,7 @@
+MitigatingControlId,MitigatingControlName,MitigatingControlTooltip,MitigatingControlHierarchy
+MC-001,Terrain warning,Alerts crew to unsafe terrain closure,Administrative
+MC-002,Emergency diversion,Provides a safe alternate route,PPE
+MC-003,Automatic safe-mode recovery,Maintains controlled flight during recovery,Engineering
+MC-004,Protective crew equipment,Supports safe recovery in degraded conditions,PPE
+MC-101,Fire enclosure,,Isolate
+MC-102,Remove flammable electrolyte,,Substitute

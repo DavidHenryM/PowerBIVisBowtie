@@ -1,0 +1,9 @@
+{
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+    "files.exclude": {
+        "**/node_modules": true
+    },
+    "files.watcherExclude": {
+        "**/node_modules/**": true
+    }
+}

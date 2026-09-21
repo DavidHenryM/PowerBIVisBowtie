@@ -1,181 +1,143 @@
-# Data shape for the Safety Bowtie visual (MIL-STD-882E)
+# Data shape for the Safety Bowtie visual
 
-The visual consumes a **single flattened relationship table**: one row per
-link between two artefacts. Nodes are derived automatically as the union of
-all `Source ID` and `Target ID` values.
-
-The same flattened table renders a **bowtie**: the unique `Hazard`-typed node
-becomes the **top event** at the centre; each remaining node's side is derived
-from link direction — nodes that can reach the top event form the **causal
-side** (left: causal factors and preventive controls), and nodes reachable
-from the top event form the **mishap side** (right: mitigative controls and
-mishaps). See [Bowtie conventions (MIL-STD-882E)](#bowtie-conventions-mil-std-882e)
-for the derivation rules.
-
-This flattened table doesn't have to be your source data shape. If your data
-is naturally normalized — an **Artefacts** table (one row per artefact) and a
-**Links** table (one row per relationship) — see
-[Two-table input (Artefacts + Links)](#two-table-input-artefacts--links) below
-for how to combine them.
+The visual consumes one flat table and displays one hazard at a time. Use a Power BI slicer or page filter on `Hazard ID` or `Hazard Name`. When exactly one hazard remains, the visual displays two vertically stacked bowties: **Initial controls** and **Target controls**.
 
 ## Field wells
 
-| Field well | Required | Purpose |
-|---|---|---|
-| Source ID | yes | Unique artefact ID at the start of the link |
-| Target ID | yes | Unique artefact ID the link points to (arrow end) |
-| Link Type | no | Relationship name — drawn as the edge label and used for edge colour (bowtie convention: `causes` into the hazard, `results-in` out of it, `mitigates` from a control) |
-| Source Artefact Type / Target Artefact Type | no | Artefact type of each endpoint (e.g. `Hazard`, `Causal Factor`, `Mishap`, `Control`, plus legacy SE types such as `SEMP`, `SSMP`, `Requirement`). Drives node colour, icon and bowtie placement |
-| Source Program / Target Program | no | Program each artefact belongs to. Drives the legend program filter |
-| Source Classification / Target Classification | no | Security classification chip (e.g. `OFFICIAL`, `OFFICIAL: Sensitive`, `PROTECTED`, `SECRET`) |
-| Source Caveat / Target Caveat | no | Caveat chip (e.g. `AUSTEO`, `REL`, `FVEY`) |
-| Source Status / Target Status | no | Lifecycle status — drives node border style (`Draft` = dashed, `Approved` = solid green, `Baseline` = solid blue, `Superseded` = dotted red) |
-| Source Severity / Target Severity | no | MIL-STD-882E severity category of the artefact (Table I): `I`/`Catastrophic`, `II`/`Critical`, `III`/`Marginal`, `IV`/`Negligible`. With probability, drives the assessed mishap risk |
-| Source Probability / Target Probability | no | MIL-STD-882E probability level of the artefact (Table II): `A`/`Frequent`, `B`/`Probable`, `C`/`Occasional`, `D`/`Remote`, `E`/`Improbable`, `F`/`Eliminated` |
-| Source URL / Target URL | no | Link to open the artefact (e.g. a document management system URL). Ctrl/Cmd+Click a node to open its link in a new tab; shown as a hint in the tooltip |
-| Source Short Name / Target Short Name | no | Short display name for the artefact — shown in the tooltip |
-| Source Long Name / Target Long Name | no | Full/long-form name for the artefact — shown in the tooltip |
-| Source Scope / Target Scope | no | Ownership scope of the artefact (e.g. `Contractor 1`, `Internal`) — shown in the tooltip |
-| Source Version / Target Version | no | Artefact version/revision — shown in the tooltip |
-| Source External ID / Target External ID | no | Identifier from an external system of record — shown in the tooltip |
-| Source DMS ID / Target DMS ID | no | Document management system identifier — shown in the tooltip |
-| Highlight measure | no | Optional measure that enables cross-highlighting this visual from other visuals/slicers on the page |
+| Field | Required | Purpose |
+|---|---:|---|
+| Control Set | yes | `Initial` or `Target` |
+| Cause ID / Name | for preventive paths | Stable cause key and display label |
+| Cause Tooltip | no | Additional cause information |
+| Preventive Control ID / Name | for preventive paths | Stable preventive-control key and display label |
+| Preventive Control Tooltip | no | Additional preventive-control information |
+| Preventive Control Hierarchy | no | Australian hierarchy-of-controls category |
+| Preventive Verification Method | no | One or more verification methods linked to the preventive control |
+| Preventive Verification Phase | no | One or more verification phases linked to the preventive control |
+| Preventive Before Severity / Probability | no | Risk immediately before the preventive control |
+| Preventive After Severity / Probability | no | Risk immediately after the preventive control |
+| Hazard ID / Name | yes | Hazard key used by slicers and its display label |
+| Hazard Tooltip | no | Additional hazard information |
+| Mitigating Control ID / Name | for mitigating paths | Stable mitigating-control key and display label |
+| Mitigating Control Tooltip | no | Additional mitigating-control information |
+| Mitigating Control Hierarchy | no | Australian hierarchy-of-controls category |
+| Mitigating Verification Method | no | One or more verification methods linked to the mitigating control |
+| Mitigating Verification Phase | no | One or more verification phases linked to the mitigating control |
+| Mitigating Before Severity / Probability | no | Risk immediately before the mitigating control |
+| Mitigating After Severity / Probability | no | Risk immediately after the mitigating control |
+| Effect ID / Name | for mitigating paths | Stable effect key and display label |
+| Effect Tooltip | no | Additional effect information |
+| Highlight measure | no | Enables cross-highlighting from other visuals |
 
-See [sample-data/links.csv](../sample-data/links.csv) and
-[sample-data/artefacts.csv](../sample-data/artefacts.csv) for a worked bowtie
-example: a *Loss of Navigation* hazard with two causal factors (GNSS jamming,
-IMU failure), preventive controls (redundant GPS, inertial backup, EMC
-shielding), three mishaps with severity/probability spanning all four 882E
-risk levels, and mitigative controls (TAWS, emergency diversion procedure) —
-including an `Export Controlled` caveat and Source/Target URLs. See
-[Two-table input (Artefacts + Links)](#two-table-input-artefacts--links) for
-how these two normalized files are combined into the flattened shape above.
+Names are used as labels and IDs remain the stable keys. A missing name falls back to its ID. Tooltip fields are free text.
 
-## Bowtie conventions (MIL-STD-882E)
+## Row shape
 
-The visual derives the bowtie shape from the data — you don't pin positions:
+Each row may describe a preventive path, a mitigating path, or both:
 
-- **Top event (knot).** The unique `Hazard`-typed artefact. If several
-  hazards exist, the most-connected one is used (ties break by ID); if none
-  exists, the most-connected artefact overall becomes the top event and a
-  note is shown so the visual still renders non-bowtie data.
-- **Sides.** Following link direction from the top event: anything that can
-  *reach* it sits on the **causal side** (left); anything *reachable from* it
-  sits on the **mishap side** (right). A node on a cycle resolves to the
-  nearer side (ties break left). Nodes with no path to or from the top event
-  lie outside the bowtie and are hidden, with a count shown in the corner.
-- **Controls.** A control takes the side of the non-hazard node it attaches
-  to. A control attached only to the hazard is **preventive** when its edge
-  points *into* the hazard (e.g. `Control —mitigates→ Hazard`) and
-  **mitigative** when the edge *leaves* the hazard (e.g.
-  `Hazard —mitigated-by→ Control`). The recommended convention is to point
-  control edges at the threat/mishap line they protect:
-  `Control —mitigates→ CausalFactor` on the left and
-  `Control —mitigates→ Mishap` on the right.
-- **Suggested link types.** `causes` (causal factor → hazard),
-  `results-in` (hazard → mishap), `mitigates` / `mitigated-by` (control
-  links). Other link types still render and are coloured as before.
-- **Suggested artefact types.** `Hazard` (top event), `Causal Factor`,
-  `Mishap`, `Control`. Type matching is keyword-based, so `Threat`,
-  `Consequence`, `Loss event`, `Barrier` etc. also resolve; anything else
-  keeps its colour and joins the side its links place it on.
-- **Mishap risk.** When both severity and probability are bound for a hazard
-  or mishap, the visual assesses the mishap risk per 882E Table III
-  (High/Serious/Medium/Low), colours the node by it, and adds an H/S/M/L
-  badge. Accepted values: severity `I`–`IV`, `1`–`4` or the category names;
-  probability `A`–`F` or the level names. Probability `F` (Eliminated)
-  assesses as Low. Both can be toggled in the format pane (**Mishap risk
-  (MIL-STD-882E)** card).
-
-## Two-table input (Artefacts + Links)
-
-If your source system stores artefacts and links as two separate tables
-rather than one flattened export, you don't need to change anything about
-how the visual is bound — its data roles just need to resolve to the columns
-above by the time Power BI queries them. Two supported ways to get there:
-
-### Option 1 — Power Query merge
-
-Merge `Links` with `Artefacts` twice (once per endpoint) and expand the
-attribute columns with a `Source`/`Target` prefix:
-
-```m
-let
-    Source = Links,
-    MergeSource = Table.NestedJoin(Source, {"SourceId"}, Artefacts, {"ArtefactId"}, "SourceArtefact", JoinKind.LeftOuter),
-    ExpandSource = Table.ExpandTableColumn(MergeSource, "SourceArtefact",
-        {"Type","Program","Classification","Caveat","Status","Url","ShortName","LongName","Scope","Version","ExternalId","DmsId","Severity","Probability"},
-        {"SourceType","SourceProgram","SourceClassification","SourceCaveat","SourceStatus","SourceUrl","SourceShortName","SourceLongName","SourceScope","SourceVersion","SourceExternalId","SourceDmsId","SourceSeverity","SourceProbability"}),
-    MergeTarget = Table.NestedJoin(ExpandSource, {"TargetId"}, Artefacts, {"ArtefactId"}, "TargetArtefact", JoinKind.LeftOuter),
-    ExpandTarget = Table.ExpandTableColumn(MergeTarget, "TargetArtefact",
-        {"Type","Program","Classification","Caveat","Status","Url","ShortName","LongName","Scope","Version","ExternalId","DmsId","Severity","Probability"},
-        {"TargetType","TargetProgram","TargetClassification","TargetCaveat","TargetStatus","TargetUrl","TargetShortName","TargetLongName","TargetScope","TargetVersion","TargetExternalId","TargetDmsId","TargetSeverity","TargetProbability"})
-in
-    ExpandTarget
+```text
+Cause -> Before risk -> Preventive control -> After risk -> Hazard
+Hazard -> Before risk -> Mitigating control -> After risk -> Effect
 ```
 
-The result is exactly the flattened shape described in **Field wells** above
-— bind its columns to the matching roles.
+Left-only and right-only rows are supported. Leave all fields for the unused side blank. This avoids creating a Cartesian product between causes and effects.
 
-### Option 2 — relationship-based (no merge step)
+Repeat IDs to express relationships:
 
-If you'd rather keep `Artefacts` and `Links` as separate model tables:
+- Many causes to one preventive control: repeat the preventive control ID with different cause IDs.
+- Many preventive controls to one hazard: repeat the hazard ID with different preventive control IDs.
+- One hazard to many mitigating controls: repeat the hazard ID with different mitigating control IDs.
+- One mitigating control to many effects: repeat the mitigating control ID with different effect IDs.
 
-1. Duplicate `Artefacts` as a role-playing `Artefacts (Target)` table
-   (reference the query in Power Query, or duplicate the table in the model).
-2. Create two relationships: `Links[SourceId] → Artefacts[ArtefactId]` and
-   `Links[TargetId] → Artefacts (Target)[ArtefactId]`.
-3. Bind `Source ID`/`Link Type` from `Links`, `Source Artefact Type`/
-   `Source Program`/etc. from `Artefacts`, and the `Target *` roles from
-   `Artefacts (Target)`. Power BI's query engine joins them automatically —
-   no Power Query merge step required.
+Nodes and links are de-duplicated by Control Set, element kind, and ID. Repeated rows therefore do not create duplicate visual elements.
 
-Either option produces the same result the visual sees; pick whichever is
-easier to maintain in your model.
+## Initial and target controls
 
-## Notes
+Every selected hazard should have rows for both `Initial` and `Target`. The visual also accepts `Current` or `Existing` as Initial aliases and `Proposed` or `Future` as Target aliases.
 
-- **De-duplicate rows.** If the source system emits the same relationship
-  more than once, remove duplicates in Power Query — on the `Links` table
-  itself if using the two-table input (*Home → Remove Rows → Remove
-  Duplicates* on `SourceId` + `TargetId` + `LinkType`), or on the merged
-  result otherwise. The visual also de-duplicates defensively.
-- **Endpoint attributes may repeat.** Each artefact's type/program/
-  classification can be repeated on every row it participates in; the visual
-  takes the first non-empty value it sees for each artefact.
-- **If your source data is a node table** (one row per artefact with a
-  *Reports-To / Derived-From* column), reshape it in Power Query: duplicate
-  the query, and self-join `Derived-From → Artefact ID` to produce the
-  relationship table above.
-- **Classification names are display strings.** The visual recognises common
-  PSPF values for colouring (OFFICIAL → green, OFFICIAL: Sensitive → amber,
-  PROTECTED → orange, SECRET → red), and falls back to a neutral grey chip
-  for anything else. No classification handling logic is enforced — this is a
-  display-only label.
-- **Caveats are display strings too.** Recognised values get a distinct chip
-  colour (`AUSTEO`/Australian Eyes Only → blue, `FVEY`/Five Eyes → purple,
-  `Export Controlled`/`ITAR`/`EAR99`/`DTC` → red, `REL`/Releasable → teal);
-  anything else falls back to a neutral grey chip. Any free-text value is
-  accepted — colouring is cosmetic only.
+The two diagrams use separate internal identities, so an element may appear in both control sets without a layout collision. Filtering must leave exactly one distinct Hazard ID; otherwise the visual asks the user to select one.
 
-## Colour and icon defaults
+## Risk assessment
 
-| Type contains | Node colour | Glyph |
-|---|---|---|
-| threat / causal factor / cause | brown | F |
-| hazard / risk | orange | ! |
-| control / mitigation / barrier | gold | C |
-| mishap / consequence / loss event | red | M |
-| SEMP / OCD / SSMP / plan / doc | blue | D |
-| spec | green | S |
-| verif / test / VCRM | purple | V |
-| req | cyan | R |
-| anything else | grey | ? |
+Each control has separate before and after Severity and Probability fields. The visual creates a risk node for each pair and assesses it using MIL-STD-882E Table III.
 
-When severity **and** probability are bound, hazard and mishap nodes are
-instead coloured by their assessed mishap risk (882E Table III): **High** =
-red, **Serious** = orange, **Medium** = amber, **Low** = green, plus an
-H/S/M/L badge in the corner of the node. A conditional-formatting (rule-based)
-node colour, when present, still wins over both.
+Accepted severity values are `I`-`IV`, `1`-`4`, or Catastrophic/Critical/Marginal/Negligible. Accepted probability values are `A`-`F`, or Frequent/Probable/Occasional/Remote/Improbable/Eliminated. Missing or invalid pairs display **Not assessed**.
 
-All colours are overridable in the format pane (**Colors** card).
+## Hierarchy of controls
+
+Control hierarchy values are normalized to the Australian six-level hierarchy:
+
+1. Eliminate
+2. Substitute
+3. Isolate
+4. Engineering
+5. Administrative
+6. PPE
+
+Common word variants are accepted. Unknown non-empty values receive a generic `HC` badge and retain their original text in the tooltip.
+
+## Control verification metadata
+
+Preventive and mitigating controls accept independent verification **method** and **phase** lists. Typical methods include `Review`, `Analysis`, `Demonstration`, `Inspection`, and `Test`; typical phases include `FAT`, `SAT`, and `UAT`.
+
+Values may arrive on repeated linked-table rows or as comma-, semicolon-, or pipe-delimited text. The visual trims, case-insensitively de-duplicates, and stably sorts values for each control. Method and phase are independent lists; the visual does not infer pairings between them.
+
+Every distinct value is shown as its own colour-coded badge on the control, for example `V: Review` and `Phase: FAT`. Badges wrap to additional rows without a fixed limit and the control grows vertically to contain them. Full lists also appear in the control tooltip. Badge colours are stable Power BI theme colours with separate namespaces for methods and phases.
+
+The legend includes interactive **Verification method** and **Verification phase** sections. Selecting a legend value hides or shows controls carrying that value; controls without verification metadata are unaffected.
+
+## Multi-table semantic model
+
+The source model may remain normalized across element dimensions and junction tables. Power BI custom visuals receive one categorical query result, however, so the two junctions must be projected into one sparse visual-facing table. Do not bind two disconnected junction tables directly to the visual: fields from both sides can produce a cause-by-effect Cartesian product before the visual receives the data.
+
+The worked model in [sample-data/semantic-model](../sample-data/semantic-model) uses:
+
+- `Hazards`, `Causes`, `PreventiveControls`, `MitigatingControls`, and `Effects` as element dimensions.
+- `PreventiveJunction` at the grain Control Set + Hazard + Cause + Preventive Control.
+- `MitigatingJunction` at the grain Control Set + Hazard + Mitigating Control + Effect.
+- `PreventiveControlVerifications` and `MitigatingControlVerifications` as control-linked verification bridge tables.
+- `BowtiePath` as the appended, sparse presentation table consumed by this visual.
+
+```mermaid
+erDiagram
+	HAZARDS ||--o{ BOWTIE_PATH : HazardId
+	CAUSES ||--o{ BOWTIE_PATH : CauseId
+	PREVENTIVE_CONTROLS ||--o{ BOWTIE_PATH : PreventiveControlId
+	MITIGATING_CONTROLS ||--o{ BOWTIE_PATH : MitigatingControlId
+	EFFECTS ||--o{ BOWTIE_PATH : EffectId
+
+	PREVENTIVE_JUNCTION }o--|| HAZARDS : HazardId
+	PREVENTIVE_JUNCTION }o--|| CAUSES : CauseId
+	PREVENTIVE_JUNCTION }o--|| PREVENTIVE_CONTROLS : PreventiveControlId
+	MITIGATING_JUNCTION }o--|| HAZARDS : HazardId
+	MITIGATING_JUNCTION }o--|| MITIGATING_CONTROLS : MitigatingControlId
+	MITIGATING_JUNCTION }o--|| EFFECTS : EffectId
+	PREVENTIVE_CONTROL_VERIFICATIONS }o--|| PREVENTIVE_CONTROLS : PreventiveControlId
+	MITIGATING_CONTROL_VERIFICATIONS }o--|| MITIGATING_CONTROLS : MitigatingControlId
+```
+
+### Build `BowtiePath`
+
+1. Load the nine CSV files from [sample-data/semantic-model](../sample-data/semantic-model) as queries named `Hazards`, `Causes`, `PreventiveControls`, `MitigatingControls`, `Effects`, `PreventiveJunction`, `MitigatingJunction`, `PreventiveControlVerifications`, and `MitigatingControlVerifications`.
+2. Create a blank Power Query named `BowtiePath` and paste in [BowtiePath.pq](../sample-data/semantic-model/BowtiePath.pq).
+3. The query joins descriptive fields onto each junction independently, adds null columns for the opposite side, and appends the results. This preserves each junction's grain and avoids multiplying preventive rows by mitigating rows.
+4. Disable load for the two raw junction queries if they are only staging queries. Keep the five dimensions loaded when they are used by slicers or other report visuals.
+
+Create one-to-many, single-direction relationships from each dimension ID to its matching `BowtiePath` ID. Keep filter direction from dimension to `BowtiePath`; bidirectional relationships are unnecessary and can introduce ambiguous filter paths. The two control dimensions are deliberately role-specific. If controls originate in one source table, create two referenced Power Query dimensions or two role-playing model tables.
+
+Bind all 30 categorical field wells from `BowtiePath`. Use `Hazards[HazardName]` or `Hazards[HazardId]` in a single-select slicer; its relationship filters `BowtiePath` to the selected hazard. Other dimension slicers can filter the table in the same way.
+
+Risk values belong on the junction assignment, not the control dimension, because the same control may have different assessed risk for different hazards, causes/effects, or Initial/Target sets. Hierarchy and tooltip attributes normally belong on their element dimensions. Verification metadata is control-level: `BowtiePath.pq` first aggregates each verification bridge to one row per control and only then joins it to the path, preventing verification records from multiplying cause/effect relationship rows.
+
+## Power BI setup
+
+For a single-table source:
+
+1. Load [the flat sample CSV](../sample-data/bowtie.csv).
+2. Bind each CSV column to its matching field well.
+3. Add a slicer using Hazard ID or Hazard Name and enable single selection.
+4. Select one hazard. Both Initial and Target bowties render in the same visual.
+
+For a normalized semantic model, follow [Multi-table semantic model](#multi-table-semantic-model) and bind the resulting `BowtiePath` fields instead.
+
+The sample includes two hazards, shared controls, every supported relationship cardinality, all six hierarchy categories, optional tooltip blanks, and representative risk levels.

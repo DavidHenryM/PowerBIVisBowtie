@@ -1,0 +1,5 @@
+CauseId,CauseName,CauseTooltip
+C-001,GNSS interference,External interference corrupts position data
+C-002,Receiver failure,Primary receiver hardware fails
+C-003,Corrupt database,
+C-101,Cooling loss,

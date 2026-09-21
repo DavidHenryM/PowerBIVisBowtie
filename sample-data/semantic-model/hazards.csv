@@ -1,0 +1,3 @@
+HazardId,HazardName,HazardTooltip
+H-001,Loss of navigation,Navigation solution becomes unavailable
+H-002,Battery thermal event,Cell temperature exceeds safe limits

@@ -1,0 +1,10 @@
+PreventiveControlId,VerificationMethod,VerificationPhase
+PC-001,Review,FAT
+PC-001,Inspection,SAT
+PC-001,Review,FAT
+PC-002,Analysis,UAT
+PC-003,Demonstration,FAT
+PC-004,Inspection,SAT
+PC-005,Review,UAT
+PC-101,Inspection,FAT
+PC-102,Test,SAT

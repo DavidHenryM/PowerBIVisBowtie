@@ -1,0 +1,5 @@
+EffectId,EffectName,EffectTooltip
+E-001,Controlled flight into terrain,Aircraft enters terrain conflict
+E-002,Airspace infringement,Aircraft enters controlled airspace
+E-003,Mission abort,Mission cannot continue
+E-101,Equipment fire,
