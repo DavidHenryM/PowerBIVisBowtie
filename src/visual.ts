@@ -56,6 +56,7 @@ export class Visual implements IVisual {
     private landingPage: HTMLElement;
     private noteMessage: HTMLElement;
     private toolbar: HTMLElement;
+    private riskSummary: HTMLElement;
 
     private cy: cytoscape.Core | undefined;
     private interactions: GraphInteractions | undefined;
@@ -95,7 +96,7 @@ export class Visual implements IVisual {
         const landingDescription = document.createElement("div");
         landingDescription.className = "landing-description";
         landingDescription.textContent = this.translate("Visual_LandingDescription",
-            "Bind the explicit cause, control, hazard and effect fields. Filter to one hazard to compare Initial and Target controls.");
+            "Bind the explicit cause, control, hazard and effect fields. Filter to one hazard to compare Initial and Additional controls.");
         this.landingPage.appendChild(landingTitle);
         this.landingPage.appendChild(landingDescription);
         this.legendContainer = document.createElement("div");
@@ -104,6 +105,9 @@ export class Visual implements IVisual {
         this.noteMessage = document.createElement("div");
         this.noteMessage.className = "topology-note";
         this.noteMessage.style.display = "none";
+        this.riskSummary = document.createElement("div");
+        this.riskSummary.className = "risk-summary";
+        this.riskSummary.style.display = "none";
 
         this.toolbar = document.createElement("div");
         this.toolbar.className = "visual-toolbar";
@@ -129,6 +133,7 @@ export class Visual implements IVisual {
         this.root.appendChild(this.landingPage);
         this.root.appendChild(this.legendContainer);
         this.root.appendChild(this.noteMessage);
+        this.root.appendChild(this.riskSummary);
         this.root.appendChild(this.toolbar);
         options.element.appendChild(this.root);
     }
@@ -157,7 +162,7 @@ export class Visual implements IVisual {
         const initialState = {
             title: this.translate("AboutDialog_Title", "About Safety Bowtie (MIL-STD-882E)"),
             message: this.translate("AboutDialog_Message",
-                "Compares Initial and Target safety bowties for one filtered hazard. Each control shows before and after MIL-STD-882E risk plus its hierarchy-of-controls category. Click a data element to cross-filter the report.")
+                "Compares Initial and Additional safety bowties for one filtered hazard. Each control shows before and after MIL-STD-882E risk plus its hierarchy-of-controls category. Click a data element to cross-filter the report.")
         };
         void this.host.openModalDialog(ArtefactInfoDialog.id, dialogOptions, initialState);
     }
@@ -183,8 +188,8 @@ export class Visual implements IVisual {
                 this.events.renderingFinished(options);
                 return;
             }
-            if (graph.controlSets && (!graph.controlSets.includes("initial") || !graph.controlSets.includes("target"))) {
-                this.emptyMessage.textContent = this.translate("Visual_MissingControlSet", "The selected hazard must contain both Initial and Target control sets.");
+            if (graph.controlSets && graph.controlSets.length > 2) {
+                this.emptyMessage.textContent = this.translate("Visual_MissingControlSet", "The selected hazard contains unsupported control-set values.");
                 this.showEmptyState("empty");
                 if (this.cy) this.cy.elements().remove();
                 this.events.renderingFinished(options);
@@ -256,7 +261,10 @@ export class Visual implements IVisual {
             const interactions = this.interactions;
             if (interactions) {
                 // Allow Interactions: disable selection/keyboard actions when the host marks the visual read-only
-                interactions.setAllowInteractions(this.host.hostCapabilities.allowInteractions !== false);
+                interactions.setAllowInteractions(
+                    this.host.hostCapabilities.allowInteractions !== false
+                    && settings.bowtieCard.crossReportFiltering.value);
+                interactions.setTooltipsEnabled(settings.bowtieCard.showTooltips.value);
             }
             this.host.setCanDrill(false);
 
@@ -291,6 +299,7 @@ export class Visual implements IVisual {
             cy.add(elements);
             applyCachedPositions(cy, this.positionCache);
             this.addColumnHeaders(cy, settings, columnGap, laneSpacing);
+            this.updateRiskSummary(visibleGraph, styleConfig);
 
             if (interactions) {
                 interactions.setFocusOrder(visibleGraph.nodes.filter(n => n.selectable !== false).map(n => n.id));
@@ -303,6 +312,7 @@ export class Visual implements IVisual {
             });
             layout.one("layoutstop", () => {
                 this.hasLayoutCompleted = true;
+                this.updateRiskSummary(visibleGraph, styleConfig);
                 if (this.interactions) {
                     this.interactions.applySelectionFromManager();
                 }
@@ -340,7 +350,53 @@ export class Visual implements IVisual {
         this.cyContainer.style.visibility = state === "none" ? "visible" : "hidden";
         if (state !== "none") {
             this.noteMessage.style.display = "none";
+            this.riskSummary.style.display = "none";
         }
+    }
+
+    private updateRiskSummary(graph: GraphModel, styleConfig: StyleConfig): void {
+        const riskOrder: Record<string, number> = { Low: 1, Medium: 2, Serious: 3, High: 4 };
+        const colours: Record<string, string> = {
+            High: styleConfig.colours.riskHigh,
+            Serious: styleConfig.colours.riskSerious,
+            Medium: styleConfig.colours.riskMedium,
+            Low: styleConfig.colours.riskLow
+        };
+        const highest = (controlSet: string): string => graph.nodes
+            .filter(node => node.nodeKind === "risk" && node.resultantRisk === true && (node.controlSet || "initial") === controlSet && !!node.riskLevel)
+            .map(node => node.riskLevel as string)
+            .sort((a, b) => (riskOrder[b] || 0) - (riskOrder[a] || 0))[0] || "Not assessed";
+        const hazard = this.cy && this.cy.nodes().filter(node => node.data("nodeKind") === "hazard").first() as cytoscape.NodeSingular;
+        if (!hazard || hazard.empty()) {
+            this.riskSummary.style.display = "none";
+            return;
+        }
+        const position = hazard.renderedPosition();
+        while (this.riskSummary.firstChild) {
+            this.riskSummary.removeChild(this.riskSummary.firstChild);
+        }
+        const title = document.createElement("div");
+        title.className = "risk-summary-title";
+        title.textContent = "Highest assessed risk";
+        this.riskSummary.appendChild(title);
+        for (const set of ["initial", "additional"]) {
+            const label = set === "initial" ? "Initial" : "Additional";
+            const risk = highest(set);
+            const row = document.createElement("div");
+            row.className = "risk-summary-row";
+            const labelElement = document.createElement("span");
+            labelElement.textContent = label;
+            const riskElement = document.createElement("strong");
+            riskElement.textContent = risk;
+            riskElement.style.backgroundColor = colours[risk] || "#607D8B";
+            row.appendChild(labelElement);
+            row.appendChild(riskElement);
+            this.riskSummary.appendChild(row);
+        }
+        this.riskSummary.style.left = `${position.x}px`;
+        this.riskSummary.style.top = `${Math.max(4, position.y - 92)}px`;
+        this.riskSummary.style.transform = "translateX(-50%)";
+        this.riskSummary.style.display = "block";
     }
 
     /** Bottom-left note for bowtie topology caveats (inferred centre, hidden off-bowtie nodes). */
@@ -364,35 +420,48 @@ export class Visual implements IVisual {
             return;
         }
         const rankLabels: { rank: number; key: string; fallback: string }[] = [
-            { rank: -4, key: "Bowtie_Header_CausalFactors", fallback: "Causes" },
-            { rank: -3, key: "Bowtie_Header_BeforeRisk", fallback: "Before Risk" },
-            { rank: -2, key: "Bowtie_Header_PreventiveControls", fallback: "Preventive Controls" },
-            { rank: -1, key: "Bowtie_Header_AfterRisk", fallback: "After Risk" },
+            { rank: -6, key: "Bowtie_Header_CausalFactors", fallback: "Causes" },
+            { rank: -5, key: "Bowtie_Header_BeforeRisk", fallback: "Before Risk" },
+            { rank: -4, key: "Bowtie_Header_PreventiveControls", fallback: "Initial Preventive Controls" },
+            { rank: -3, key: "Bowtie_Header_AfterRisk", fallback: "Intermediate Risk" },
+            { rank: -2, key: "Bowtie_Header_PreventiveControls", fallback: "Additional Preventive Controls" },
+            { rank: -1, key: "Bowtie_Header_AfterRisk", fallback: "Resultant Risk" },
             { rank: 0, key: "Bowtie_Header_TopEvent", fallback: "Hazard (Top Event)" },
             { rank: 1, key: "Bowtie_Header_BeforeRisk", fallback: "Before Risk" },
-            { rank: 2, key: "Bowtie_Header_MitigativeControls", fallback: "Mitigating Controls" },
-            { rank: 3, key: "Bowtie_Header_AfterRisk", fallback: "After Risk" },
-            { rank: 4, key: "Bowtie_Header_Mishaps", fallback: "Effects" }
+            { rank: 2, key: "Bowtie_Header_MitigativeControls", fallback: "Initial Mitigating Controls" },
+            { rank: 3, key: "Bowtie_Header_AfterRisk", fallback: "Intermediate Risk" },
+            { rank: 4, key: "Bowtie_Header_MitigativeControls", fallback: "Additional Mitigating Controls" },
+            { rank: 5, key: "Bowtie_Header_AfterRisk", fallback: "Resultant Risk" },
+            { rank: 6, key: "Bowtie_Header_Mishaps", fallback: "Effects" }
         ];
-        for (const set of ["initial", "target"]) {
-            const scenarioNodes = cy.nodes().filter(node => node.data("controlSet") === set);
-            if (scenarioNodes.empty()) continue;
-            const minY = scenarioNodes.min(node => (node as cytoscape.NodeSingular).position("y")).value;
-            const headerY = minY - laneSpacing * 0.8;
-            for (const header of rankLabels) {
-                if (scenarioNodes.filter(node => Number(node.data("rank")) === header.rank).empty()) continue;
-                cy.add({
-                    group: "nodes", classes: "column-header",
-                    data: { id: "__bowtie_hdr_" + set + "_" + header.rank, label: this.translate(header.key, header.fallback), highlighted: true },
-                    position: { x: header.rank * columnGap, y: headerY }, locked: true, grabbable: false, selectable: false
-                } as cytoscape.ElementDefinition);
-            }
+        const setLegendNodes = [
+            { key: "initial", label: this.translate("Bowtie_InitialControls", "INITIAL CONTROLS"), color: "#2b7de9" },
+            { key: "additional", label: this.translate("Bowtie_AdditionalControls", "ADDITIONAL CONTROLS"), color: "#f59e0b" }
+        ];
+        const scenarioNodes = cy.nodes().filter(node => node.data("rank") !== undefined && node.data("rank") !== "");
+        if (scenarioNodes.empty()) return;
+        const minY = scenarioNodes.min(node => (node as cytoscape.NodeSingular).position("y")).value;
+        const headerY = minY - laneSpacing * 0.8;
+        for (const header of rankLabels) {
+            if (scenarioNodes.filter(node => Number(node.data("rank")) === header.rank).empty()) continue;
             cy.add({
                 group: "nodes", classes: "column-header",
-                data: { id: "__bowtie_set_" + set, label: set === "initial"
-                    ? this.translate("Bowtie_InitialControls", "INITIAL CONTROLS")
-                    : this.translate("Bowtie_TargetControls", "TARGET CONTROLS"), highlighted: true },
-                position: { x: -4.8 * columnGap, y: headerY }, locked: true, grabbable: false, selectable: false
+                data: { id: "__bowtie_hdr_" + header.rank, label: this.translate(header.key, header.fallback), highlighted: true },
+                position: { x: header.rank * columnGap, y: headerY }, locked: true, grabbable: false, selectable: false
+            } as cytoscape.ElementDefinition);
+        }
+        for (const set of setLegendNodes) {
+            const setNodes = cy.nodes().filter(node => node.data("controlSet") === set.key);
+            if (setNodes.empty()) continue;
+            cy.add({
+                group: "nodes", classes: "column-header",
+                data: { id: "__bowtie_set_label_" + set.key, label: set.label, highlighted: true },
+                position: { x: -7.0 * columnGap, y: headerY + (set.key === "initial" ? -0.6 : 0.6) * laneSpacing }, locked: true, grabbable: false, selectable: false
+            } as cytoscape.ElementDefinition);
+            cy.add({
+                group: "nodes", classes: "column-header",
+                data: { id: "__bowtie_set_marker_" + set.key, label: "●", highlighted: true },
+                position: { x: -7.7 * columnGap, y: headerY + (set.key === "initial" ? -0.6 : 0.6) * laneSpacing }, locked: true, grabbable: false, selectable: false
             } as cytoscape.ElementDefinition);
         }
     }

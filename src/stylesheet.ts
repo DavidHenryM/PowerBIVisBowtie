@@ -10,6 +10,7 @@ import cytoscape from "cytoscape";
 
 import {
     getNodeIcon,
+    riskNodeSvg,
     verificationNodeHeight,
     VerificationBadge,
     statusStyle,
@@ -134,15 +135,29 @@ export type CytoscapeStyles = Exclude<NonNullable<cytoscape.CytoscapeOptions["st
 /** Builds the full Cytoscape stylesheet for the current settings. */
 export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
     const nodeStyle = {
-        "shape": "round-rectangle",
-        "width": o.nodeWidth,
-        "height": (ele: cytoscape.NodeSingular) => elementHeight(ele, o),
+        "shape": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? "ellipse" : "round-rectangle",
+        "width": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? Math.max(104, o.nodeHeight + 48) : o.nodeWidth,
+        "height": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? Math.max(104, o.nodeHeight + 48) : elementHeight(ele, o),
         // precedence: conditional-formatting override > 882E risk colouring > type colour
-        "background-color": (ele: cytoscape.NodeSingular) =>
-            ele.data("fillOverride")
-            || (o.riskColoring ? riskColour(ele.data("riskLevel") || "", o.colours) : "")
-            || typeColour(ele.data("typeKey"), o.colours),
+        "background-color": (ele: cytoscape.NodeSingular) => {
+            if (ele.data("fillOverride")) {
+                return ele.data("fillOverride");
+            }
+            if (o.riskColoring && ele.data("riskLevel")) {
+                return riskColour(ele.data("riskLevel") || "", o.colours);
+            }
+            if (ele.data("controlSet") === "initial") {
+                return "#dfeeff";
+            }
+            if (ele.data("controlSet") === "additional") {
+                return "#fff1d6";
+            }
+            return typeColour(ele.data("typeKey"), o.colours);
+        },
         "background-image": (ele: cytoscape.NodeSingular) => {
+            if (ele.data("nodeKind") === "hazard") {
+                return "none";
+            }
             const level = ele.data("riskLevel") || "";
             const height = elementHeight(ele, o);
             return getNodeIcon({
@@ -162,30 +177,47 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
                 verificationPhases: verificationBadges(ele.data("verificationPhases"), o.verificationPhaseColours)
             });
         },
-        "background-width": o.nodeWidth,
-        "background-height": (ele: cytoscape.NodeSingular) => elementHeight(ele, o),
+        "background-width": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? Math.max(104, o.nodeHeight + 48) : o.nodeWidth,
+        "background-height": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? Math.max(104, o.nodeHeight + 48) : elementHeight(ele, o),
         "background-fit": "none",
         "background-clip": "none",
         "background-image-opacity": 1,
         "label": "data(label)",
-        "text-valign": "bottom",
-        "text-halign": "center",
-        "text-margin-y": 6,
+        "text-valign": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? "center" : "bottom",
+        "text-halign": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "preventiveControl" || ele.data("nodeKind") === "mitigatingControl" ? "right" : "center",
+        "text-margin-y": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? 0 : 6,
         "color": (_ele: cytoscape.NodeSingular) => o.highContrast ? o.foregroundColor : "#333333",
         "font-size": o.fontSize,
         "font-family": "Segoe UI, Arial, sans-serif",
         "font-weight": "bold",
         "text-wrap": "wrap",
-        "text-max-width": o.nodeWidth * 1.3,
+        "text-max-width": (ele: cytoscape.NodeSingular) => ele.data("nodeKind") === "hazard" ? Math.max(80, o.nodeHeight + 20) : ele.data("nodeKind") === "preventiveControl" || ele.data("nodeKind") === "mitigatingControl" ? Math.max(60, o.nodeWidth - 48) : o.nodeWidth * 1.3,
         "min-zoomed-font-size": o.minZoomedFontSize,
-        "border-width": 2,
+        "border-width": (ele: cytoscape.NodeSingular) => {
+            if (ele.data("controlSet") === "initial" || ele.data("controlSet") === "additional") {
+                return 4;
+            }
+            return 2;
+        },
         "border-style": (ele: cytoscape.NodeSingular) => o.statusBorders ? statusStyle(ele.data("status")).line : "solid",
-        "border-color": (ele: cytoscape.NodeSingular) => o.statusBorders ? statusStyle(ele.data("status")).color : (o.highContrast ? o.foregroundColor : "#424242")
+        "border-color": (ele: cytoscape.NodeSingular) => {
+            if (o.statusBorders) {
+                return statusStyle(ele.data("status")).color;
+            }
+            if (ele.data("controlSet") === "initial") {
+                return "#2b7de9";
+            }
+            if (ele.data("controlSet") === "additional") {
+                return "#f59e0b";
+            }
+            return o.highContrast ? o.foregroundColor : "#424242";
+        }
     } as unknown as cytoscape.Css.Node;
 
     const edgeStyle = {
         "curve-style": o.curved ? "bezier" : "straight",
         "width": 2,
+        "line-style": (ele: cytoscape.EdgeSingular) => ele.data("bypass") === true ? "dashed" : "solid",
         "line-color": (ele: cytoscape.EdgeSingular) => linkColour(ele.data("linkKey"), o.colours),
         "target-arrow-color": (ele: cytoscape.EdgeSingular) => linkColour(ele.data("linkKey"), o.colours),
         "target-arrow-shape": "triangle",
@@ -251,13 +283,23 @@ export function buildStylesheet(o: StyleConfig): CytoscapeStyles {
 
     const riskNodeStyle = {
         "shape": "diamond",
-        "width": Math.max(42, o.nodeHeight),
-        "height": Math.max(42, o.nodeHeight),
+        "width": Math.max(112, o.nodeHeight + 64),
+        "height": Math.max(112, o.nodeHeight + 64),
         "font-size": Math.max(9, o.fontSize - 1),
-        "background-image": "none",
-        "background-color": (ele: cytoscape.NodeSingular) => riskColour(ele.data("riskLevel") || "", o.colours) || "#78909C",
+        "background-image": (ele: cytoscape.NodeSingular) => {
+            const probabilityLevel = ele.data("probabilityLevel") || "A";
+            const severityLevel = ele.data("severityCategory") || "I";
+            const size = Math.max(112, o.nodeHeight + 64);
+            return riskNodeSvg(size, size, probabilityLevel, severityLevel, riskColour(ele.data("riskLevel") || "", o.colours) || "#455A64");
+        },
+        "background-width": "100%",
+        "background-height": "100%",
+        "background-color": "transparent",
+        "background-fit": "contain",
+        "background-image-opacity": 1,
         "border-style": "solid",
-        "border-color": o.highContrast ? o.foregroundColor : "#455A64"
+        "border-color": o.highContrast ? o.foregroundColor : "#455A64",
+        "border-width": 2
     } as unknown as cytoscape.Css.Node;
 
     return [

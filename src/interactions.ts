@@ -28,6 +28,7 @@ export type Translate = (key: string, fallback: string) => string;
 export class GraphInteractions {
     /** false when the host has disabled interactivity (e.g. read-only/pinned focus mode) */
     private allowInteractions = true;
+    private tooltipsEnabled = true;
     /** ordered node ids used for Tab/arrow-key keyboard navigation */
     private focusOrder: string[] = [];
     private focusedIndex = -1;
@@ -56,6 +57,14 @@ export class GraphInteractions {
     /** Toggles whether click/keyboard selection and the context menu are active (host-controlled). */
     public setAllowInteractions(allow: boolean): void {
         this.allowInteractions = allow;
+    }
+
+    /** Toggles the visual tooltip option without rebuilding the event handlers. */
+    public setTooltipsEnabled(enabled: boolean): void {
+        this.tooltipsEnabled = enabled;
+        if (!enabled && this.tooltipService) {
+            this.tooltipService.hide({ immediately: true, isTouchEvent: false });
+        }
     }
 
     /** Sets the node id order used for Tab/arrow-key keyboard navigation. */
@@ -198,51 +207,49 @@ export class GraphInteractions {
 
     private attachTooltips(): void {
         const ts = this.tooltipService;
-        if (!ts || !ts.enabled()) {
+        if (!ts) {
             return;
         }
 
         this.cy.on("mouseover", "node", (e) => {
+            if (!this.tooltipsEnabled || !ts.enabled()) return;
             const node = e.target as cytoscape.NodeSingular;
             if (node.hasClass("column-header")) {
                 return;
             }
             const d = node.data();
-            const dataItems = [
-                { displayName: this.translate("Tooltip_Artefact", "Element ID"), value: String(d.semanticId || d.id) },
-                { displayName: this.translate("Tooltip_Name", "Name"), value: String(d.label || d.semanticId || d.id) },
-                { displayName: this.translate("Tooltip_Type", "Type"), value: String(d.type || "—") }
-            ];
+            const dataItems: Array<{ displayName: string; value: string }> = [];
+            const addItem = (displayName: string, value: unknown): void => {
+                const text = String(value ?? "").trim();
+                if (text && text !== "—") dataItems.push({ displayName, value: text });
+            };
+            addItem(this.translate("Tooltip_Artefact", "Element ID"), d.semanticId || d.id);
+            addItem(this.translate("Tooltip_Name", "Name"), d.label || d.semanticId || d.id);
+            addItem(this.translate("Tooltip_Type", "Type"), d.type);
             if (d.bowtieRole) {
-                dataItems.push({ displayName: this.translate("Tooltip_BowtieRole", "Bowtie role"), value: String(d.bowtieRole) });
+                addItem(this.translate("Tooltip_BowtieRole", "Bowtie role"), d.bowtieRole);
             }
             if (d.hierarchy) {
                 const hierarchy = normaliseControlHierarchy(String(d.hierarchy));
-                dataItems.push({ displayName: this.translate("Tooltip_ControlHierarchy", "Hierarchy of controls"), value: hierarchy ? hierarchy.label : String(d.hierarchy) });
+                addItem(this.translate("Tooltip_ControlHierarchy", "Hierarchy of controls"), hierarchy ? hierarchy.label : d.hierarchy);
             }
             if (d.verificationMethodText) {
-                dataItems.push({ displayName: this.translate("Tooltip_VerificationMethod", "Verification method"), value: String(d.verificationMethodText) });
+                addItem(this.translate("Tooltip_VerificationMethod", "Verification method"), d.verificationMethodText);
             }
             if (d.verificationPhaseText) {
-                dataItems.push({ displayName: this.translate("Tooltip_VerificationPhase", "Verification phase"), value: String(d.verificationPhaseText) });
+                addItem(this.translate("Tooltip_VerificationPhase", "Verification phase"), d.verificationPhaseText);
             }
             if (d.tooltip) {
-                dataItems.push({ displayName: this.translate("Tooltip_Details", "Details"), value: String(d.tooltip) });
+                addItem(this.translate("Tooltip_Details", "Details"), d.tooltip);
             }
             if (d.severity || d.severityCategory) {
-                dataItems.push({
-                    displayName: this.translate("Tooltip_Severity", "Severity (882E Table I)"),
-                    value: d.severityCategory ? describeSeverity(d.severityCategory as SeverityCategory) : String(d.severity)
-                });
+                addItem(this.translate("Tooltip_Severity", "Severity (882E Table I)"), d.severityCategory ? describeSeverity(d.severityCategory as SeverityCategory) : d.severity);
             }
             if (d.probability || d.probabilityLevel) {
-                dataItems.push({
-                    displayName: this.translate("Tooltip_Probability", "Probability (882E Table II)"),
-                    value: d.probabilityLevel ? describeProbability(d.probabilityLevel as ProbabilityLevel) : String(d.probability)
-                });
+                addItem(this.translate("Tooltip_Probability", "Probability (882E Table II)"), d.probabilityLevel ? describeProbability(d.probabilityLevel as ProbabilityLevel) : d.probability);
             }
             if (d.riskLevel) {
-                dataItems.push({ displayName: this.translate("Tooltip_Risk", "Assessed risk (882E Table III)"), value: String(d.riskLevel) });
+                addItem(this.translate("Tooltip_Risk", "Assessed risk (882E Table III)"), d.riskLevel);
             }
             const sid = this.getSelectionId(String(d.id));
             ts.show({
@@ -258,12 +265,13 @@ export class GraphInteractions {
         this.cy.on("mouseout", "node", () => ts.hide({ immediately: true, isTouchEvent: false }));
 
         this.cy.on("mouseover", "edge", (e) => {
+            if (!this.tooltipsEnabled || !ts.enabled()) return;
             const d = (e.target as cytoscape.EdgeSingular).data();
             const dataItems = [
-                { displayName: this.translate("Tooltip_Relationship", "Relationship"), value: String(d.linkType) },
-                { displayName: this.translate("Tooltip_From", "From"), value: String(d.source) },
-                { displayName: this.translate("Tooltip_To", "To"), value: String(d.target) }
-            ];
+                { displayName: this.translate("Tooltip_Relationship", "Relationship"), value: String(d.linkType || "").trim() },
+                { displayName: this.translate("Tooltip_From", "From"), value: String(d.source || "").trim() },
+                { displayName: this.translate("Tooltip_To", "To"), value: String(d.target || "").trim() }
+            ].filter(item => item.value.length > 0);
             ts.show({
                 coordinates: this.coordinatesFor(e),
                 isTouchEvent: false,

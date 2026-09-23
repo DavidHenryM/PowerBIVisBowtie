@@ -162,7 +162,7 @@ export function deriveBowtieTopology(model: GraphModel): BowtieTopology {
         node.bowtieRole = undefined;
         node.severityCategory = parseSeverity(node.severity);
         node.probabilityLevel = parseProbability(node.probability);
-        node.riskLevel = assessRisk(node.severityCategory, node.probabilityLevel);
+        node.riskLevel = assessRisk(node.severityCategory, node.probabilityLevel) || node.riskLevel;
         if (node.nodeKind === "risk") {
             node.label = node.riskLevel || "Not assessed";
         }
@@ -178,12 +178,10 @@ export function deriveBowtieTopology(model: GraphModel): BowtieTopology {
         };
         for (const node of model.nodes) {
             if (node.nodeKind === "risk") {
-                const key = node.semanticId || "";
-                node.rank = key.startsWith("preventive|") ? (key.endsWith("|before") ? -3 : -1)
-                    : (key.endsWith("|before") ? 1 : 3);
+                node.rank = node.flowRank === undefined ? 0 : node.flowRank;
                 node.side = node.rank < 0 ? "left" : "right";
             } else {
-                node.rank = rankByKind[node.nodeKind || ""];
+                node.rank = node.flowRank === undefined ? rankByKind[node.nodeKind || ""] : node.flowRank;
                 node.side = node.rank === 0 ? "centre" : node.rank < 0 ? "left" : "right";
                 node.bowtieRole = node.type;
             }
@@ -270,29 +268,25 @@ export function deriveBowtieTopology(model: GraphModel): BowtieTopology {
 }
 
 function assignExplicitLanes(model: GraphModel): void {
-    const sets: Array<"initial" | "target"> = ["initial", "target"];
-    const heights = new Map<string, number>();
-    for (const set of sets) {
-        let height = 1;
-        for (let rank = -4; rank <= 4; rank++) {
-            height = Math.max(height, model.nodes.filter(node => node.controlSet === set && node.rank === rank).length);
+    const rankGroups = new Map<number, ArtefactNode[]>();
+    for (const node of model.nodes) {
+        if (node.rank === undefined) {
+            continue;
         }
-        heights.set(set, height);
+        const list = rankGroups.get(node.rank) || [];
+        list.push(node);
+        rankGroups.set(node.rank, list);
     }
-    const initialHeight = heights.get("initial") || 1;
-    const targetHeight = heights.get("target") || 1;
-    const centres = new Map<string, number>([
-        ["initial", -(targetHeight + 3) / 2],
-        ["target", (initialHeight + 3) / 2]
-    ]);
-    for (const set of sets) {
-        for (let rank = -4; rank <= 4; rank++) {
-            const nodes = model.nodes.filter(node => node.controlSet === set && node.rank === rank)
-                .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-            nodes.forEach((node, index) => {
-                node.lane = (centres.get(set) || 0) + index - (nodes.length - 1) / 2;
-            });
-        }
+
+    for (const [rank, nodes] of rankGroups.entries()) {
+        const ordered = nodes.slice().sort((a, b) => {
+            const pathA = a.pathKey || a.id;
+            const pathB = b.pathKey || b.id;
+            return pathA < pathB ? -1 : pathA > pathB ? 1 : 0;
+        });
+        ordered.forEach((node, index) => {
+            node.lane = rank === 0 ? 0 : index - (ordered.length - 1) / 2;
+        });
     }
 }
 

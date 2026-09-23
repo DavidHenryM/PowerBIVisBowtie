@@ -4,7 +4,7 @@
     "displayName":"Bowtie (MIL-STD-882E)",
     "guid":"bowTie35C69DA0E1B4D42539BAEBA1066E662546",
     "visualClassName":"Visual",
-    "version":"1.3.0.0",
+    "version":"1.3.0.1",
     "description":"Bowtie visualisation of a MIL-STD-882E system safety model: causal factors and preventive controls flow into the hazard (top event), then out through mitigative controls to mishaps, with severity/probability-based mishap risk assessment (882E Table III).",
     "supportUrl":"https://github.com/DavidHenryM/PowerBIVisBowtie",
     "gitHubUrl":"https://github.com/DavidHenryM/PowerBIVisBowtie"
@@ -21,6 +21,5 @@
   "style":"style/visual.less",
   "capabilities":"capabilities.json",
   "dependencies":"dependencies.json",
-  "stringResources":[],
-  "version":"1.3.0.0"
+  "stringResources":[]
 }

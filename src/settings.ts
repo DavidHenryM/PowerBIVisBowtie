@@ -65,9 +65,21 @@ class BowtieCardSettings extends FormattingSettingsCard {
         value: 110
     });
 
+    showTooltips = new formattingSettings.ToggleSwitch({
+        name: "showTooltips",
+        displayName: "Show tooltips",
+        value: true
+    });
+
+    crossReportFiltering = new formattingSettings.ToggleSwitch({
+        name: "crossReportFiltering",
+        displayName: "Cross-report filtering",
+        value: true
+    });
+
     name: string = "bowtie";
     displayName: string = "Bowtie";
-    slices: Array<FormattingSettingsSlice> = [this.showColumnHeaders, this.laneSpacing];
+    slices: Array<FormattingSettingsSlice> = [this.showColumnHeaders, this.laneSpacing, this.showTooltips, this.crossReportFiltering];
 }
 
 /**

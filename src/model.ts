@@ -12,7 +12,7 @@ export type BowtieSide = "left" | "centre" | "right";
 export type SeverityCategory = "I" | "II" | "III" | "IV";
 export type ProbabilityLevel = "A" | "B" | "C" | "D" | "E" | "F";
 export type RiskLevel = "High" | "Serious" | "Medium" | "Low";
-export type ControlSet = "initial" | "target";
+export type ControlSet = "initial" | "additional";
 export type BowtieNodeKind = "cause" | "preventiveControl" | "hazard" | "mitigatingControl" | "effect" | "risk";
 
 export interface ArtefactNode {
@@ -50,6 +50,10 @@ export interface ArtefactNode {
     side?: BowtieSide;
     rank?: number;
     lane?: number;
+    flowRank?: number;
+    pathKey?: string;
+    riskStage?: "before" | "intermediate" | "after";
+    resultantRisk?: boolean;
     bowtieRole?: string;
 }
 
@@ -60,6 +64,8 @@ export interface ArtefactLink {
     linkType: string;
     linkKey: string;
     highlighted: boolean;
+    controlSet?: ControlSet;
+    bypass?: boolean;
 }
 
 export interface GraphModel {
@@ -78,12 +84,19 @@ export function buildGraph(dataView: DataView, host: IVisualHost): GraphModel {
 }
 
 export function toCytoscapeElements(graph: GraphModel): cytoscape.ElementDefinition[] {
+    const hasMultipleControlSets = graph.nodes.some(node => node.controlSet === "initial")
+        && graph.nodes.some(node => node.controlSet === "additional");
+
     const elements: cytoscape.ElementDefinition[] = graph.nodes.map(node => ({
         group: "nodes",
         data: {
             id: node.id,
             semanticId: node.semanticId || node.id,
-            label: node.label,
+            label: node.nodeKind === "hazard"
+                ? (node.label || node.semanticId || node.id) + "\n" + (node.semanticId || node.id)
+                : hasMultipleControlSets && node.controlSet
+                    ? (node.controlSet === "initial" ? "Initial: " : "Additional: ") + (node.label || "")
+                    : node.label,
             type: node.type,
             typeKey: node.typeKey,
             nodeKind: node.nodeKind || "",
@@ -116,7 +129,11 @@ export function toCytoscapeElements(graph: GraphModel): cytoscape.ElementDefinit
             side: node.side || "",
             bowtieRole: node.bowtieRole || "",
             rank: node.rank === undefined ? "" : node.rank,
-            lane: node.lane === undefined ? "" : node.lane
+            lane: node.lane === undefined ? "" : node.lane,
+            flowRank: node.flowRank === undefined ? "" : node.flowRank,
+            pathKey: node.pathKey || "",
+            riskStage: node.riskStage || "",
+            resultantRisk: node.resultantRisk === true
         }
     } as cytoscape.ElementDefinition));
     for (const link of graph.links) {
@@ -128,7 +145,9 @@ export function toCytoscapeElements(graph: GraphModel): cytoscape.ElementDefinit
                 target: link.target,
                 linkType: link.linkType,
                 linkKey: link.linkKey,
-                highlighted: link.highlighted
+                highlighted: link.highlighted,
+                controlSet: link.controlSet || "",
+                bypass: link.bypass === true
             }
         } as cytoscape.ElementDefinition);
     }

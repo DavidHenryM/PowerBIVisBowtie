@@ -19,14 +19,14 @@ export interface StatusStyle {
 }
 
 const TYPE_GLYPHS: Record<ArtefactTypeKey, string> = {
-    document: "D",
-    spec: "S",
-    causalFactor: "F",
+    document: "Doc",
+    spec: "Spec",
+    causalFactor: "Caus",
     hazard: "!",
-    control: "C",
-    mishap: "M",
+    control: "Ctrl",
+    mishap: "Mish",
     verification: "V",
-    requirement: "R",
+    requirement: "Req",
     other: "?"
 };
 
@@ -221,16 +221,76 @@ export function verificationNodeHeight(baseHeight: number, width: number, method
 }
 
 /** Normalises Australian hierarchy-of-controls values for display and badges. */
-export function normaliseControlHierarchy(raw: string): { label: string; glyph: string } | undefined {
+export function normaliseControlHierarchy(raw: string): { label: string; glyph: string; tooltip?: string; } | undefined {
     const value = (raw || "").toLowerCase().trim();
     if (!value) return undefined;
-    if (value.includes("eliminat")) return { label: "Eliminate", glyph: "EL" };
-    if (value.includes("substitut")) return { label: "Substitute", glyph: "SU" };
-    if (value.includes("isolat")) return { label: "Isolate", glyph: "IS" };
-    if (value.includes("engineer")) return { label: "Engineering", glyph: "EN" };
-    if (value.includes("admin")) return { label: "Administrative", glyph: "AD" };
-    if (value === "ppe" || value.includes("personal protective")) return { label: "PPE", glyph: "PPE" };
-    return { label: raw.trim(), glyph: "HC" };
+    if (value.includes("eliminat")) return { label: "Eliminate", glyph: "ELIM", tooltip: "Eliminate" };
+    if (value.includes("substitut")) return { label: "Substitute", glyph: "SUB", tooltip: "Substitute" };
+    if (value.includes("isolat")) return { label: "Isolate", glyph: "ISOL", tooltip: "Isolate" };
+    if (value.includes("engineer")) return { label: "Engineering", glyph: "ENG", tooltip: "Engineering" };
+    if (value.includes("admin")) return { label: "Administrative", glyph: "ADMIN", tooltip: "Administrative" };
+    if (value === "ppe" || value.includes("personal protective")) return { label: "PPE", glyph: "PPE", tooltip: "PPE" };
+    return { label: raw.trim(), glyph: "HC", tooltip: raw.trim() };
+}
+
+const PROBABILITY_LEVEL_COLORS: Record<string, string> = {
+    A: "#B71C1C",
+    B: "#D32F2F",
+    C: "#EF6C00",
+    D: "#F9A825",
+    E: "#7CB342",
+    F: "#2E7D32"
+};
+
+const PROBABILITY_LEVEL_NAMES: Record<string, string> = {
+    A: "Frequent",
+    B: "Probable",
+    C: "Occasional",
+    D: "Remote",
+    E: "Improbable",
+    F: "Eliminated"
+};
+
+const SEVERITY_LEVEL_COLORS: Record<string, string> = {
+    I: "#B71C1C",
+    II: "#EF6C00",
+    III: "#F9A825",
+    IV: "#2E7D32"
+};
+
+const SEVERITY_LEVEL_NAMES: Record<string, string> = {
+    I: "Catastrophic",
+    II: "Critical",
+    III: "Marginal",
+    IV: "Negligible"
+};
+
+export function riskNodeSvg(width: number, height: number, probabilityLevel: string, severityLevel: string, outerColour: string = "#455A64"): string {
+    const w = Math.max(52, Math.round(width));
+    const h = Math.max(52, Math.round(height));
+    const cx = w / 2;
+    const cy = h / 2;
+    const innerSize = Math.min(76, Math.max(52, Math.min(w, h) - 24));
+    const innerLeft = (w - innerSize) / 2;
+    const innerTop = (h - innerSize) / 2;
+    const innerRight = innerLeft + innerSize;
+    const innerBottom = innerTop + innerSize;
+    const triangleGap = 8;
+    const splitLeft = cx - triangleGap / 2;
+    const splitRight = cx + triangleGap / 2;
+    const leftColour = PROBABILITY_LEVEL_COLORS[probabilityLevel] || "#607D8B";
+    const rightColour = SEVERITY_LEVEL_COLORS[severityLevel] || "#607D8B";
+    return "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + w + "\" height=\"" + h + "\" viewBox=\"0 0 " + w + " " + h + "\">"
+        + "<polygon points=\"" + cx + ",2 " + (w - 2) + "," + cy + " " + cx + "," + (h - 2) + " 2," + cy + "\" fill=\"" + outerColour + "\" stroke=\"" + outerColour + "\" stroke-width=\"4\"/>"
+        + "<polygon points=\"" + innerLeft + "," + cy + " " + splitLeft + "," + innerTop + " " + splitLeft + "," + innerBottom + "\" fill=\"" + leftColour + "\" opacity=\"0.92\"/>"
+        + "<polygon points=\"" + splitRight + "," + innerTop + " " + innerRight + "," + cy + " " + splitRight + "," + innerBottom + "\" fill=\"" + rightColour + "\" opacity=\"0.92\"/>"
+        + "<line x1=\"" + splitLeft + "\" y1=\"" + innerTop + "\" x2=\"" + splitLeft + "\" y2=\"" + innerBottom + "\" stroke=\"#ffffff\" stroke-width=\"1\" opacity=\"0.9\"/>"
+        + "<line x1=\"" + splitRight + "\" y1=\"" + innerTop + "\" x2=\"" + splitRight + "\" y2=\"" + innerBottom + "\" stroke=\"#ffffff\" stroke-width=\"1\" opacity=\"0.9\"/>"
+        + "<text x=\"" + (cx - innerSize * 0.25) + "\" y=\"" + (cy * 0.92 + 10) + "\" font-family=\"Segoe UI, Arial, sans-serif\" font-size=\"20\" font-weight=\"bold\" fill=\"#ffffff\" text-anchor=\"middle\">" + probabilityLevel + "</text>"
+        + "<text x=\"" + (cx + innerSize * 0.25) + "\" y=\"" + (cy * 0.92 + 10) + "\" font-family=\"Segoe UI, Arial, sans-serif\" font-size=\"20\" font-weight=\"bold\" fill=\"#ffffff\" text-anchor=\"middle\">" + severityLevel + "</text>"
+        + "</svg>"
+    );
 }
 
 const iconCache = new Map<string, string>();
@@ -278,6 +338,7 @@ export function getNodeIcon(options: NodeIconOptions): string {
     const w = Math.max(40, Math.round(options.width));
     const h = Math.max(24, Math.round(options.height));
     const parts: string[] = [];
+    const isControl = options.typeKey === "control";
 
     if (options.showIcons) {
         const badgeR = Math.min(22, h / 2 - 6);
@@ -324,19 +385,25 @@ export function getNodeIcon(options: NodeIconOptions): string {
     const verificationBadges = options.verificationMethods.map(badge => ({ text: "V: " + badge.label, colour: badge.colour }))
         .concat(options.verificationPhases.map(badge => ({ text: "Phase: " + badge.label, colour: badge.colour })));
     if (verificationBadges.length > 0) {
-        const startX = verificationBadgeStartX(w);
+        const startX = isControl ? Math.max(3, w - Math.min(112, w - 6)) : verificationBadgeStartX(w);
         const availableRight = w - chipGap;
         const availableWidth = Math.max(20, availableRight - startX);
         let x = startX;
         let y = chipGap;
         for (const badge of verificationBadges) {
             const width = badgeWidth(badge.text.length > 22 ? badge.text.slice(0, 21) + "…" : badge.text, availableWidth);
-            if (x > startX && x + width > availableRight) {
+            if (isControl) {
+                x = availableRight - width;
+            } else if (x > startX && x + width > availableRight) {
                 x = startX;
                 y += VERIFICATION_BADGE_HEIGHT + VERIFICATION_BADGE_GAP;
             }
             parts.push(verificationChipSvg(badge.text, badge.colour, x, y, availableWidth));
-            x += width + VERIFICATION_BADGE_GAP;
+            if (isControl) {
+                y += VERIFICATION_BADGE_HEIGHT + VERIFICATION_BADGE_GAP;
+            } else {
+                x += width + VERIFICATION_BADGE_GAP;
+            }
         }
     }
 

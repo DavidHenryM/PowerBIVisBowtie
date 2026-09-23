@@ -173,3 +173,39 @@
         display: inline-block;
     }
 }
+
+.risk-summary {
+    position: absolute;
+    z-index: 9;
+    width: 184px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #b8b8b8;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    font-size: 11px;
+    color: #333333;
+
+    .risk-summary-title {
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+
+    .risk-summary-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 20px;
+
+        strong {
+            min-width: 68px;
+            padding: 3px 6px;
+            border-radius: 3px;
+            color: #ffffff;
+            text-align: center;
+            font-size: 10px;
+        }
+    }
+}

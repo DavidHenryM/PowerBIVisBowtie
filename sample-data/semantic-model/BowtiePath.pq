@@ -17,23 +17,23 @@ let
             if List.IsEmpty(Distinct) then null else Text.Combine(Distinct, ", "),
 
     PreventiveVerification = Table.Group(
-        PreventiveControlVerifications,
+        #"preventive-control-verifications",
         {"PreventiveControlId"},
         {
             {"PreventiveVerificationMethod", each DistinctText([VerificationMethod]), type nullable text},
             {"PreventiveVerificationPhase", each DistinctText([VerificationPhase]), type nullable text}
         }),
     PreventiveControlsJoined = Table.NestedJoin(
-        PreventiveControls, {"PreventiveControlId"}, PreventiveVerification, {"PreventiveControlId"}, "Verification", JoinKind.LeftOuter),
+        #"preventive-controls", {"PreventiveControlId"}, PreventiveVerification, {"PreventiveControlId"}, "Verification", JoinKind.LeftOuter),
     PreventiveControlsExpanded = Table.ExpandTableColumn(
         PreventiveControlsJoined, "Verification", {"PreventiveVerificationMethod", "PreventiveVerificationPhase"}),
 
     PreventiveHazard = Table.NestedJoin(
-        PreventiveJunction, {"HazardId"}, Hazards, {"HazardId"}, "Hazard", JoinKind.LeftOuter),
+        #"preventive-junction", {"HazardId"}, #"hazards", {"HazardId"}, "Hazard", JoinKind.LeftOuter),
     PreventiveHazardExpanded = Table.ExpandTableColumn(
         PreventiveHazard, "Hazard", {"HazardName", "HazardTooltip"}),
     PreventiveCause = Table.NestedJoin(
-        PreventiveHazardExpanded, {"CauseId"}, Causes, {"CauseId"}, "Cause", JoinKind.LeftOuter),
+        PreventiveHazardExpanded, {"CauseId"}, #"causes", {"CauseId"}, "Cause", JoinKind.LeftOuter),
     PreventiveCauseExpanded = Table.ExpandTableColumn(
         PreventiveCause, "Cause", {"CauseName", "CauseTooltip"}),
     PreventiveControl = Table.NestedJoin(
@@ -53,23 +53,23 @@ let
             "MitigatingControlId", "MitigatingControlName", "MitigatingControlTooltip",
             "MitigatingControlHierarchy", "MitigatingVerificationMethod", "MitigatingVerificationPhase",
             "MitigatingBeforeSeverity", "MitigatingBeforeProbability",
-            "MitigatingAfterSeverity", "MitigatingAfterProbability", "EffectId", "EffectName", "EffectTooltip"
+            "MitigatingAfterSeverity", "MitigatingAfterProbability", "MitigatingBeforeRisk", "MitigatingAfterRisk", "EffectId", "EffectName", "EffectTooltip"
         }),
 
     MitigatingVerification = Table.Group(
-        MitigatingControlVerifications,
+        #"mitigating-control-verifications",
         {"MitigatingControlId"},
         {
             {"MitigatingVerificationMethod", each DistinctText([VerificationMethod]), type nullable text},
             {"MitigatingVerificationPhase", each DistinctText([VerificationPhase]), type nullable text}
         }),
     MitigatingControlsJoined = Table.NestedJoin(
-        MitigatingControls, {"MitigatingControlId"}, MitigatingVerification, {"MitigatingControlId"}, "Verification", JoinKind.LeftOuter),
+        #"mitigating-controls", {"MitigatingControlId"}, MitigatingVerification, {"MitigatingControlId"}, "Verification", JoinKind.LeftOuter),
     MitigatingControlsExpanded = Table.ExpandTableColumn(
         MitigatingControlsJoined, "Verification", {"MitigatingVerificationMethod", "MitigatingVerificationPhase"}),
 
     MitigatingHazard = Table.NestedJoin(
-        MitigatingJunction, {"HazardId"}, Hazards, {"HazardId"}, "Hazard", JoinKind.LeftOuter),
+        #"mitigating-junction", {"HazardId"}, #"hazards", {"HazardId"}, "Hazard", JoinKind.LeftOuter),
     MitigatingHazardExpanded = Table.ExpandTableColumn(
         MitigatingHazard, "Hazard", {"HazardName", "HazardTooltip"}),
     MitigatingControl = Table.NestedJoin(
@@ -84,7 +84,7 @@ let
         "MitigatingControl",
         {"MitigatingControlName", "MitigatingControlTooltip", "MitigatingControlHierarchy", "MitigatingVerificationMethod", "MitigatingVerificationPhase"}),
     MitigatingEffect = Table.NestedJoin(
-        MitigatingControlExpanded, {"EffectId"}, Effects, {"EffectId"}, "Effect", JoinKind.LeftOuter),
+        MitigatingControlExpanded, {"EffectId"}, #"effects", {"EffectId"}, "Effect", JoinKind.LeftOuter),
     MitigatingExpanded = Table.ExpandTableColumn(
         MitigatingEffect, "Effect", {"EffectName", "EffectTooltip"}),
     MitigatingComplete = AddNullColumns(
@@ -93,7 +93,7 @@ let
             "CauseId", "CauseName", "CauseTooltip", "PreventiveControlId", "PreventiveControlName",
             "PreventiveControlTooltip", "PreventiveControlHierarchy", "PreventiveVerificationMethod",
             "PreventiveVerificationPhase", "PreventiveBeforeSeverity",
-            "PreventiveBeforeProbability", "PreventiveAfterSeverity", "PreventiveAfterProbability"
+            "PreventiveBeforeProbability", "PreventiveBeforeRisk", "PreventiveAfterSeverity", "PreventiveAfterProbability", "PreventiveAfterRisk"
         }),
 
     Combined = Table.Combine({PreventiveComplete, MitigatingComplete}),
@@ -102,12 +102,13 @@ let
         "PreventiveControlName", "PreventiveControlTooltip", "PreventiveControlHierarchy",
         "PreventiveVerificationMethod", "PreventiveVerificationPhase",
         "PreventiveBeforeSeverity", "PreventiveBeforeProbability", "PreventiveAfterSeverity",
-        "PreventiveAfterProbability", "HazardId", "HazardName", "HazardTooltip",
+        "PreventiveBeforeRisk", "PreventiveAfterProbability", "PreventiveAfterRisk", "HazardId", "HazardName", "HazardTooltip",
         "MitigatingControlId", "MitigatingControlName", "MitigatingControlTooltip",
         "MitigatingControlHierarchy", "MitigatingVerificationMethod", "MitigatingVerificationPhase",
         "MitigatingBeforeSeverity", "MitigatingBeforeProbability",
-        "MitigatingAfterSeverity", "MitigatingAfterProbability", "EffectId", "EffectName", "EffectTooltip"
+        "MitigatingBeforeRisk", "MitigatingAfterSeverity", "MitigatingAfterProbability",
+        "MitigatingAfterRisk", "EffectId", "EffectName", "EffectTooltip"
     },
-    BowtiePath = Table.ReorderColumns(Combined, Columns)
+    bowtiepath = Table.ReorderColumns(Combined, Columns)
 in
-    BowtiePath
+    bowtiepath
